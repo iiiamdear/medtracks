@@ -120,13 +120,15 @@ def get_step_status(doc) -> dict:
     else:
         return {"current": 0, "label": "รอดำเนินการ",           "color": "secondary"}
 
-# ===== AUTH =====
+# ===== AUTH & REGISTER =====
 
 @app.get("/login", response_class=HTMLResponse)
-def login_get(request: Request):
+def login_get(request: Request, success: Optional[str] = None):
+    # หากสมัครสมาชิกสำเร็จ จะมีข้อความแจ้งเตือนสีเขียวขึ้นมา
+    success_msg = "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วยบัญชีของคุณ" if success == "registered" else None
     return templates.TemplateResponse(
         request=request, name="login.html",
-        context={"error": None})
+        context={"error": None, "success_msg": success_msg})
 
 @app.post("/login")
 def login_post(request: Request,
@@ -138,7 +140,7 @@ def login_post(request: Request,
     if not user or not verify_password(password, user.password):
         return templates.TemplateResponse(
             request=request, name="login.html",
-            context={"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"})
+            context={"error": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", "success_msg": None})
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie("username", username, httponly=True)
     return response
@@ -148,6 +150,47 @@ def logout():
     response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("username")
     return response
+
+# GET: แสดงหน้าสมัครสมาชิก
+@app.get("/register", response_class=HTMLResponse)
+def register_get(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="register.html",
+        context={"error": None})
+
+# POST: บันทึกข้อมูลสมัครสมาชิก
+@app.post("/register")
+def register_post(request: Request,
+                  username: str = Form(...),
+                  password: str = Form(...),
+                  confirm_password: str = Form(...),
+                  db: Session = Depends(get_db)):
+    username = username.strip()
+    
+    # 1. ตรวจสอบว่ารหัสผ่านตรงกันไหม
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request=request, name="register.html",
+            context={"error": "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"})
+            
+    # 2. ตรวจสอบว่ามี Username นี้ในระบบหรือยัง
+    exist_user = db.query(models.User).filter(models.User.username == username).first()
+    if exist_user:
+        return templates.TemplateResponse(
+            request=request, name="register.html",
+            context={"error": "ชื่อผู้ใช้นี้ถูกใช้งานไปแล้ว"})
+            
+    # 3. บันทึกลงฐานข้อมูล (กำหนดบทบาทเริ่มต้นเป็น "user")
+    new_user = models.User(
+        username=username,
+        password=hash_password(password),
+        role="user"
+    )
+    db.add(new_user)
+    db.commit()
+    
+    # สมัครเสร็จแล้ว ส่งกลับไปหน้า Login พร้อมแนบ parameter ความสำเร็จ
+    return RedirectResponse(url="/login?success=registered", status_code=302)
 
 # ===== USER MANAGEMENT (เฉพาะ ADMIN เท่านั้น) =====
 
@@ -539,8 +582,4 @@ def pharmacist_delete(ph_id: int, request: Request,
     if response: return response
     
     ph = db.query(models.Pharmacist).filter(
-        models.Pharmacist.id == ph_id).first()
-    if ph:
-        db.delete(ph)
-        db.commit()
-    return RedirectResponse(url="/pharmacists", status_code=302)
+        models.Pharmacist.id == ph_
