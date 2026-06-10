@@ -4,3 +4,4 @@ sqlalchemy
 jinja2
 qrcode
 pillow
+python-multipart
