@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}หน้าหลัก - MedTrack{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 me-2"></i>เอกสารที่กำลังดำเนินการ{% endblock %}
+
+{% block content %}
+
+<!-- stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#2980b9,#3498db);">
+      <i class="bi bi-file-earmark-text"></i>
+      <div class="stat-num">{{ stats.total }}</div>
+      <div class="small">เอกสารทั้งหมด</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#e67e22,#f39c12);">
+      <i class="bi bi-hourglass-split"></i>
+      <div class="stat-num">{{ stats.pending }}</div>
+      <div class="small">รอดำเนินการ</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);">
+      <i class="bi bi-arrow-repeat"></i>
+      <div class="stat-num">{{ stats.in_progress }}</div>
+      <div class="small">กำลังดำเนินการ</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#27ae60,#2ecc71);">
+      <i class="bi bi-check-circle"></i>
+      <div class="stat-num">{{ stats.done }}</div>
+      <div class="small">เสร็จสิ้น</div>
+    </div>
+  </div>
+</div>
+
+<!-- toolbar -->
+<div class="card mb-3">
+  <div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="fw-bold text-secondary">
+      <i class="bi bi-list-ul me-1"></i>
+      เอกสารที่กำลังดำเนินการ
+      <span class="badge bg-primary ms-1">{{ docs|length }}</span>
+    </span>
+    <a href="/create" class="btn btn-success btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>สร้างเอกสารใหม่
+    </a>
+  </div>
+</div>
+
+<!-- table -->
+<div class="card">
+  <div class="card-body p-0">
+    {% if docs %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3">#</th>
+            <th>HN</th>
+            <th>ชื่อผู้ป่วย</th>
+            <th>สิทธิ์</th>
+            <th>แพทย์</th>
+            <th class="text-center">ขั้นตอน</th>
+            <th>ราคารวม</th>
+            <th>วันที่สร้าง</th>
+            <th class="text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in docs %}
+          <tr>
+            <td class="ps-3 text-muted small">{{ doc.id }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ doc.hn }}</span>
+            </td>
+            <td class="fw-bold">{{ doc.patient_name }}</td>
+            <td class="small">{{ doc.rights }}</td>
+            <td class="small">{{ doc.doctor }}</td>
+            <td class="text-center">
+              {% set s = doc.step_status %}
+              <span class="badge bg-{{ s.color }}">
+                {{ s.label }}
+              </span>
+            </td>
+            <td class="text-success fw-bold">
+              {{ "%.2f"|format(doc.total_price) }} บาท
+            </td>
+            <td class="small text-muted">
+              {{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}
+            </td>
+            <td class="text-center">
+              <a href="/document/{{ doc.id }}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox" style="font-size:3.5rem; opacity:.3;"></i>
+      <p class="mt-3 mb-1 fw-bold">ยังไม่มีเอกสาร</p>
+      <p class="small">กดปุ่มด้านล่างเพื่อสร้างเอกสารใหม่</p>
+      <a href="/create" class="btn btn-success mt-2">
+        <i class="bi bi-plus-lg me-1"></i>สร้างเอกสารใหม่
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

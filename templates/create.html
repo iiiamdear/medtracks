@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}สร้างเอกสาร - MedTrack{% endblock %}
+{% block page_title %}<i class="bi bi-plus-circle me-2"></i>สร้างเอกสารใหม่{% endblock %}
+
+{% block extra_css %}
+<style>
+  .med-row { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 8px; border: 1px solid #e9ecef; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" action="/create">
+  <div class="row g-4">
+
+    <!-- ซ้าย: ข้อมูลผู้ป่วย -->
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header bg-white py-3">
+          <h6 class="mb-0 fw-bold">
+            <i class="bi bi-person me-2 text-primary"></i>ข้อมูลผู้ป่วย
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">HN <span class="text-danger">*</span></label>
+            <input type="text" name="hn" class="form-control" required placeholder="เช่น 123456">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">ชื่อ-นามสกุล <span class="text-danger">*</span></label>
+            <input type="text" name="patient_name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">สิทธิ์การรักษา <span class="text-danger">*</span></label>
+            <select name="rights" class="form-select" required>
+              <option value="">-- เลือกสิทธิ์ --</option>
+              <option>สิทธิ์ข้าราชการ</option>
+              <option>สิทธิ์ประกันสังคม</option>
+              <option>สิทธิ์บัตรทอง</option>
+              <option>ชำระเงินเอง</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">แพทย์ผู้สั่ง <span class="text-danger">*</span></label>
+            <input type="text" name="doctor" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">เภสัชกร</label>
+            <select name="pharmacist_id" class="form-select">
+              <option value="">-- ไม่ระบุ --</option>
+              {% for ph in pharmacists %}
+              <option value="{{ ph.id }}">{{ ph.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">หมายเหตุ</label>
+            <textarea name="note" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ขวา: รายการยา -->
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold">
+            <i class="bi bi-capsule me-2 text-success"></i>รายการยา
+          </h6>
+          <button type="button" class="btn btn-success btn-sm" onclick="addMedRow()">
+            <i class="bi bi-plus-lg me-1"></i>เพิ่มยา
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="med-container"></div>
+
+          <p id="no-med-msg" class="text-muted text-center py-3">
+            <i class="bi bi-capsule me-1"></i>กดปุ่ม "เพิ่มยา" เพื่อเพิ่มรายการ
+          </p>
+
+          <!-- ราคารวม -->
+          <div class="border-top pt-3 mt-2">
+            <div class="d-flex justify-content-between fw-bold fs-6">
+              <span>รวมทั้งหมด</span>
+              <span class="text-success" id="total-price">0.00 บาท</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-end mt-4">
+    <a href="/" class="btn btn-outline-secondary me-2">
+      <i class="bi bi-x-lg me-1"></i>ยกเลิก
+    </a>
+    <button type="submit" class="btn btn-success px-4">
+      <i class="bi bi-save me-1"></i>บันทึกเอกสาร
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const medicines = {{ medicines | tojson }};
+let rowCount = 0;
+
+function addMedRow() {
+  document.getElementById('no-med-msg').style.display = 'none';
+  const idx = rowCount++;
+
+  const opts = medicines.map(m =>
+    `<option value="${m.id}" data-price="${m.price}" data-unit="${m.unit}">
+      ${m.name} (${m.unit}) - ${parseFloat(m.price).toFixed(2)} บาท
+    </option>`
+  ).join('');
+
+  const div = document.createElement('div');
+  div.className = 'med-row';
+  div.id = `row-${idx}`;
+  div.innerHTML = `
+    <div class="row g-2 align-items-end">
+
+      <!-- เลือกยา -->
+      <div class="col-12">
+        <label class="form-label small mb-1 fw-bold">ยา <span class="text-danger">*</span></label>
+        <select name="medicine_ids" class="form-select form-select-sm"
+                onchange="updatePrice(${idx})" required>
+          <option value="">-- เลือกยา --</option>
+          ${opts}
+        </select>
+      </div>
+
+      <!-- วิธีใช้ -->
+      <div class="col-12">
+        <label class="form-label small mb-1">วิธีใช้ / ขนาดยา</label>
+        <input type="text" name="doses"
+               class="form-control form-control-sm"
+               placeholder="เช่น รับประทาน 1 เม็ด วันละ 3 ครั้ง">
+      </div>
+
+      <!-- จำนวน -->
+      <div class="col-5">
+        <label class="form-label small mb-1 fw-bold">จำนวน</label>
+        <input type="number" name="quantities"
+               class="form-control form-control-sm"
+               min="1" value="1"
+               oninput="updatePrice(${idx})" required>
+      </div>
+
+      <!-- ราคาต่อหน่วย (แสดง) -->
+      <div class="col-4">
+        <label class="form-label small mb-1">ราคา/หน่วย</label>
+        <div class="form-control form-control-sm bg-white text-muted"
+             id="unit-price-${idx}">0.00 บาท</div>
+        <!-- ส่งค่าไป backend -->
+        <input type="hidden" name="unit_prices" id="hidden-unit-price-${idx}" value="0">
+      </div>
+
+      <!-- ปุ่มลบ -->
+      <div class="col-3">
+        <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                onclick="removeRow(${idx})">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+
+      <!-- ราคารวมของแถวนี้ -->
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center
+                    bg-success bg-opacity-10 rounded px-2 py-1">
+          <small class="text-muted">ราคารวม</small>
+          <small class="fw-bold text-success" id="row-total-${idx}">0.00 บาท</small>
+        </div>
+      </div>
+
+    </div>`;
+
+  document.getElementById('med-container').appendChild(div);
+  calcTotal();
+}
+
+function removeRow(idx) {
+  const row = document.getElementById(`row-${idx}`);
+  if (row) row.remove();
+  if (document.querySelectorAll('.med-row').length === 0) {
+    document.getElementById('no-med-msg').style.display = 'block';
+  }
+  calcTotal();
+}
+
+function updatePrice(idx) {
+  const row      = document.getElementById(`row-${idx}`);
+  const sel      = row.querySelector('select[name="medicine_ids"]');
+  const qtyInput = row.querySelector('input[name="quantities"]');
+  const qty      = parseInt(qtyInput.value) || 1;
+  const opt      = sel.options[sel.selectedIndex];
+  const price    = parseFloat(opt?.dataset?.price || 0);
+  const total    = price * qty;
+
+  // แสดงผล
+  document.getElementById(`unit-price-${idx}`).textContent =
+    `${price.toFixed(2)} บาท`;
+  document.getElementById(`row-total-${idx}`).textContent =
+    `${total.toFixed(2)} บาท`;
+
+  // ส่งค่า unit_price ไป backend
+  document.getElementById(`hidden-unit-price-${idx}`).value = price;
+
+  calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('.med-row').forEach(row => {
+    const sel   = row.querySelector('select[name="medicine_ids"]');
+    const qty   = parseInt(row.querySelector('input[name="quantities"]').value) || 1;
+    const opt   = sel.options[sel.selectedIndex];
+    const price = parseFloat(opt?.dataset?.price || 0);
+    total += price * qty;
+  });
+  document.getElementById('total-price').textContent =
+    `${total.toFixed(2)} บาท`;
+}
+</script>
+{% endblock %}

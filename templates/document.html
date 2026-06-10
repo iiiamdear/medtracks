@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}เอกสาร #{{ doc.id }}{% endblock %}
+{% block page_title %}<i class="bi bi-file-earmark-text me-2"></i>เอกสาร #{{ doc.id }}{% endblock %}
+
+{% block content %}
+<!-- เพิ่ม CSS สำหรับควบคุมการพิมพ์ตรงนี้ -->
+<style>
+  @media print {
+    /* 1. ซ่อนแถบเมนู, ปุ่มต่างๆ, และ Footer ของระบบเดิม */
+    nav, footer, .navbar, .sidebar, .no-print, .btn, button {
+      display: none !important;
+    }
+
+    /* 2. ล้างสีพื้นหลังของเว็บ ให้เป็นสีขาวสำหรับพิมพ์ */
+    body {
+      background-color: #fff !important;
+      color: #000 !important;
+      font-size: 12pt;
+    }
+
+    /* 3. บังคับให้คอลัมน์ซ้าย-ขวาขยายเต็มหน้ากระดาษ และเรียงต่อกัน */
+    .row {
+      display: block !important;
+    }
+    .col-lg-8, .col-lg-4 {
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+      padding: 0 !important;
+    }
+
+    /* 4. ปรับแต่ง Card ให้ไม่มีเงา และใช้เส้นขอบธรรมดา */
+    .card {
+      border: none !important;
+      box-shadow: none !important;
+      margin-bottom: 1.5rem !important;
+    }
+    .card-header {
+      background-color: transparent !important;
+      border-bottom: 2px solid #000 !important;
+      padding: 10px 0 !important;
+    }
+    .card-body {
+      padding: 10px 0 !important;
+    }
+
+    /* 5. จัดการ QR Code ให้อยู่กึ่งกลางหน้ากระดาษด้านล่าง */
+    .qr-print-section {
+      text-align: center !important;
+      margin-top: 30px !important;
+      border-top: 1px dashed #000 !important;
+      padding-top: 20px !important;
+    }
+    .qr-print-section .card-header {
+      display: none !important; /* ซ่อนหัวข้อคำว่า "QR Code ติดตาม" ตอนพิมพ์ */
+    }
+  }
+</style>
+
+<div class="row g-4">
+  <!-- Left: Info -->
+  <div class="col-lg-8">
+    <!-- [ส่วนที่ 1] ข้อมูลผู้ป่วย (เก็บไว้พิมพ์) -->
+    <div class="card mb-3">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="bi bi-person-lines-fill me-2 text-primary no-print"></i>ข้อมูลผู้ป่วย
+        </h6>
+        {% set s = doc.step_status %}
+        <span class="badge badge-step bg-{{ s.color }} fs-6 no-print">{{ s.label }}</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">HN</label>
+            <p class="fw-bold mb-0">{{ doc.hn }}</p>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">ชื่อผู้ป่วย</label>
+            <p class="fw-bold mb-0">{{ doc.patient_name }}</p>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">สิทธิ์การรักษา</label>
+            <p class="fw-bold mb-0">{{ doc.rights }}</p>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">แพทย์ผู้สั่ง</label>
+            <p class="fw-bold mb-0">{{ doc.doctor }}</p>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">เภสัชกร</label>
+            <p class="fw-bold mb-0">
+              {{ doc.pharmacist.name if doc.pharmacist else "-" }}
+            </p>
+          </div>
+          <div class="col-md-4 col-6">
+            <label class="text-muted small">วันที่สร้าง</label>
+            <p class="fw-bold mb-0">
+              {{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}
+            </p>
+          </div>
+          {% if doc.note %}
+          <div class="col-12">
+            <label class="text-muted small">หมายเหตุ</label>
+            <p class="mb-0">{{ doc.note }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- [ส่วนที่ 2] รายการยา (เก็บไว้พิมพ์) -->
+    <div class="card mb-3">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="bi bi-capsule me-2 text-success no-print"></i>รายการยา
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th class="ps-3">ยา</th>
+              <th>ขนาด/วิธีใช้</th>
+              <th class="text-center">จำนวน</th>
+              <th class="text-end pe-3">ราคา</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in doc.items %}
+            <tr>
+              <td class="ps-3">{{ item.medicine.name }}</td>
+              <td class="text-muted small">{{ item.dose or "-" }}</td>
+              <td class="text-center">
+                {{ item.quantity }} {{ item.medicine.unit }}
+              </td>
+              <td class="text-end pe-3">{{ "%.2f"|format(item.price) }} บาท</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light">
+              <td colspan="3" class="ps-3 fw-bold">รวมทั้งหมด</td>
+              <td class="text-end pe-3 fw-bold text-success">
+                {{ "%.2f"|format(doc.total_price) }} บาท
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- [ซ่อนตอนพิมพ์] สถานะการติดตาม (เพิ่มคลาส no-print) -->
+    <div class="card no-print">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-arrow-right-circle me-2 text-info"></i>สถานะการติดตาม
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          {% set steps = [
+            (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
+            (2, "งานประกัน", doc.step2_scanned_at, doc.step2_name),
+            (3, "งานจัดซื้อ", doc.step3_scanned_at, doc.step3_name)
+          ] %}
+          {% for num, label, scanned_at, name in steps %}
+          <div class="col-md-4">
+            <div class="card {% if scanned_at %}border-success{% else %}border-light{% endif %}">
+              <div class="card-body text-center py-3">
+                <div class="mb-2">
+                  {% if scanned_at %}
+                  <i class="bi bi-check-circle-fill text-success" style="font-size:2rem;"></i>
+                  {% else %}
+                  <i class="bi bi-circle text-muted" style="font-size:2rem;"></i>
+                  {% endif %}
+                </div>
+                <p class="fw-bold mb-1">ขั้นที่ {{ num }}: {{ label }}</p>
+                {% if scanned_at %}
+                <p class="small text-success mb-0">{{ name }}</p>
+                <p class="small text-muted mb-0">
+                  {{ scanned_at.strftime('%d/%m/%Y %H:%M') }}
+                </p>
+                {% else %}
+                <p class="small text-muted mb-0">ยังไม่สแกน</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: QR + Actions -->
+  <div class="col-lg-4">
+    <!-- [ส่วนที่ 3] QR Code (เก็บเฉพาะรูป QR ไว้พิมพ์ จัดให้อยู่ตรงกลางตอนพิมพ์) -->
+    <div class="card mb-3 qr-print-section">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-qr-code me-2"></i>QR Code ติดตาม
+        </h6>
+      </div>
+      <div class="card-body text-center">
+        <img src="data:image/png;base64,{{ qr_b64 }}"
+             class="img-fluid mb-2" style="max-width:220px;">
+        <p class="small text-muted mb-3">{{ track_url }}</p>
+        <button onclick="window.print()"
+                class="btn btn-outline-secondary btn-sm w-100 no-print">
+          <i class="bi bi-printer me-1"></i>พิมพ์เอกสาร
+        </button>
+      </div>
+    </div>
+
+    <!-- [ซ่อนตอนพิมพ์] ปุ่มดำเนินการอื่นๆ (มีคลาส no-print อยู่แล้ว) -->
+    <div class="card no-print">
+      <div class="card-body">
+        {% if not doc.is_finished %}
+        <form method="post" action="/finish/{{ doc.id }}"
+              onsubmit="return confirm('ยืนยันปิดเอกสาร?')">
+          <button class="btn btn-success w-100 mb-2">
+            <i class="bi bi-check-circle me-1"></i>ปิดเอกสาร
+          </button>
+        </form>
+        {% else %}
+        <div class="alert alert-success py-2 text-center mb-2">
+          <i class="bi bi-check-circle-fill me-1"></i>
+          ปิดเอกสารแล้ว
+          <br><small>{{ doc.finished_at.strftime('%d/%m/%Y %H:%M') }}</small>
+        </div>
+        {% endif %}
+        <a href="/" class="btn btn-outline-secondary w-100 mb-2">
+          <i class="bi bi-arrow-left me-1"></i>กลับหน้าหลัก
+        </a>
+        <form method="post" action="/delete/{{ doc.id }}"
+              onsubmit="return confirm('ยืนยันลบเอกสาร?')">
+          <button class="btn btn-outline-danger w-100">
+            <i class="bi bi-trash me-1"></i>ลบเอกสาร
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

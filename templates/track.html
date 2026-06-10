@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ติดตามเอกสาร #{{ doc.id }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Sarabun', sans-serif; }
+    body { background: #f0f4f8; }
+    .step-card { border-radius: 12px; transition: all 0.2s; cursor: pointer; }
+    .step-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    .step-done { border: 2px solid #27ae60; background: #eafaf1; }
+    .step-next { border: 2px solid #2980b9; background: #eaf4fb; }
+    .step-wait { border: 2px solid #dee2e6; }
+  </style>
+</head>
+<body>
+<div class="container py-4" style="max-width:600px;">
+  <div class="text-center mb-4">
+    <i class="bi bi-capsule-pill text-success" style="font-size:2.5rem;"></i>
+    <h5 class="fw-bold mt-2">MedTrack</h5>
+    <p class="text-muted small">ระบบติดตามเอกสารยา</p>
+  </div>
+
+  <!-- Doc Info -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-6">
+          <small class="text-muted">HN</small>
+          <p class="fw-bold mb-1">{{ doc.hn }}</p>
+          <small class="text-muted">ชื่อผู้ป่วย</small>
+          <p class="fw-bold mb-0">{{ doc.patient_name }}</p>
+        </div>
+        <div class="col-6">
+          <small class="text-muted">แพทย์</small>
+          <p class="fw-bold mb-1">{{ doc.doctor }}</p>
+          <small class="text-muted">สิทธิ์</small>
+          <p class="fw-bold mb-0">{{ doc.rights }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert -->
+  {% if success %}
+  <div class="alert alert-success">
+    <i class="bi bi-check-circle-fill me-2"></i>บันทึกสำเร็จ!
+  </div>
+  {% endif %}
+  {% if error %}
+  <div class="alert alert-danger">
+    <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Steps Status -->
+  <div class="row g-3 mb-4">
+    {% set steps = [
+      (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
+      (2, "งานประกัน",  doc.step2_scanned_at, doc.step2_name),
+      (3, "งานจัดซื้อ", doc.step3_scanned_at, doc.step3_name)
+    ] %}
+    {% for num, label, scanned_at, name in steps %}
+    <div class="col-4">
+      <div class="card text-center py-3
+        {% if scanned_at %}step-done
+        {% elif doc.step_status.current == num - 1 %}step-next
+        {% else %}step-wait{% endif %}">
+        {% if scanned_at %}
+        <i class="bi bi-check-circle-fill text-success fs-4"></i>
+        {% else %}
+        <i class="bi bi-circle text-muted fs-4"></i>
+        {% endif %}
+        <p class="small fw-bold mb-0 mt-1">{{ label }}</p>
+        {% if scanned_at %}
+        <p class="x-small text-muted mb-0" style="font-size:0.7rem;">
+          {{ scanned_at.strftime('%d/%m %H:%M') }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Scan Form -->
+  {% if not doc.is_finished %}
+    {% set next_step = doc.step_status.current + 1 %}
+    {% if next_step <= 3 %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0">
+          <i class="bi bi-qr-code-scan me-2"></i>
+          บันทึกขั้นที่ {{ next_step }}
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="step" value="{{ next_step }}">
+          <div class="mb-3">
+            <label class="form-label fw-bold">ชื่อผู้รับ</label>
+            <input type="text" name="scanner_name"
+                   class="form-control form-control-lg"
+                   placeholder="กรอกชื่อ..." required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2">
+            <i class="bi bi-check2 me-2"></i>ยืนยันรับเอกสาร
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success text-center">
+      <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+      <strong>ครบทุกขั้นตอนแล้ว!</strong>
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="alert alert-secondary text-center">
+    <i class="bi bi-lock-fill me-2"></i>เอกสารนี้ปิดแล้ว
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

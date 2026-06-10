@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}ประวัติ - MedTrack{% endblock %}
+{% block page_title %}<i class="bi bi-clock-history me-2"></i>ประวัติเอกสาร{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header bg-white py-3">
+    <form class="d-flex gap-2" method="get" action="/history">
+      <input type="text" name="search" class="form-control"
+             placeholder="ค้นหา HN หรือชื่อผู้ป่วย..."
+             value="{{ search }}">
+      <button type="submit" class="btn btn-primary px-3">
+        <i class="bi bi-search"></i>
+      </button>
+      {% if search %}
+      <a href="/history" class="btn btn-outline-secondary">
+        <i class="bi bi-x-lg"></i>
+      </a>
+      {% endif %}
+    </form>
+  </div>
+  <div class="card-body p-0">
+    {% if docs %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3">#</th>
+            <th>HN</th>
+            <th>ชื่อผู้ป่วย</th>
+            <th>สิทธิ์</th>
+            <th>ราคารวม</th>
+            <th>สถานะ</th>
+            <th>ปิดเมื่อ</th>
+            <th class="text-center">ดู</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in docs %}
+          <tr>
+            <td class="ps-3 text-muted small">{{ doc.id }}</td>
+            <td><span class="badge bg-light text-dark">{{ doc.hn }}</span></td>
+            <td class="fw-bold">{{ doc.patient_name }}</td>
+            <td>{{ doc.rights }}</td>
+            <td class="text-success fw-bold">
+              {{ "%.2f"|format(doc.total_price) }} บาท
+            </td>
+            <td>
+              {% set s = doc.step_status %}
+              <span class="badge bg-{{ s.color }}">{{ s.label }}</span>
+            </td>
+            <td class="small text-muted">
+              {% if doc.finished_at %}
+              {{ doc.finished_at.strftime('%d/%m/%Y %H:%M') }}
+              {% else %}-{% endif %}
+            </td>
+            <td class="text-center">
+              <a href="/document/{{ doc.id }}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox" style="font-size:3rem;"></i>
+      <p class="mt-2">ไม่พบเอกสาร</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

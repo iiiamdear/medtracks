@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แสกนเอกสาร</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Sarabun', sans-serif; background: #f0f4f8; }
+        .navbar {
+            background: #1a73e8; color: white; padding: 15px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; }
+        .nav-right { display: flex; align-items: center; gap: 15px; }
+        .nav-user  { color: #aed6ff; font-size: 13px; }
+        .btn-logout {
+            background: rgba(255,255,255,0.2); color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 6px 14px; border-radius: 6px;
+            cursor: pointer; font-family: inherit; font-size: 13px;
+        }
+        .container { max-width: 700px; margin: 30px auto; padding: 0 20px; }
+        .card {
+            background: white; border-radius: 12px; padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex; justify-content: space-between;
+            padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+        }
+        .info-row label { color: #888; font-size: 14px; }
+        .info-row span  { font-weight: bold; color: #333; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block; margin-bottom: 6px;
+            font-weight: bold; color: #333;
+        }
+        select, textarea {
+            width: 100%; padding: 10px 14px;
+            border: 1px solid #ddd; border-radius: 8px;
+            font-size: 15px; font-family: inherit;
+        }
+        select:focus, textarea:focus {
+            outline: none; border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+        .btn-submit {
+            background: #1a73e8; color: white; border: none;
+            padding: 12px 30px; border-radius: 8px;
+            cursor: pointer; font-size: 16px;
+            font-family: inherit; font-weight: bold;
+        }
+        .btn-submit:hover { background: #1557b0; }
+        .history-item {
+            border-left: 3px solid #1a73e8; padding: 10px 15px;
+            margin-bottom: 10px; background: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+        }
+        .history-item .status { font-weight: bold; color: #1a73e8; }
+        .history-item .time   { font-size: 12px; color: #888; }
+        .success-box {
+            background: #e6f4ea; color: #34a853;
+            border: 1px solid #a8d5b5; border-radius: 8px;
+            padding: 12px 15px; margin-bottom: 20px;
+            font-size: 15px;
+        }
+        .btn-back {
+            display: inline-block; margin-bottom: 20px;
+            color: #1a73e8; text-decoration: none; font-size: 15px;
+        }
+        .med-list { margin: 5px 0 0 0; padding: 0; list-style: none; }
+        .med-list li { font-size: 13px; color: #555; padding: 2px 0; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>💊 ระบบติดตามเอกสารยา</h1>
+    <div class="nav-right">
+        <a href="/">หน้าหลัก</a>
+        <a href="/create">สร้างเอกสาร</a>
+        <a href="/history">ประวัติ</a>
+        <a href="/medicines">ยา</a>
+        <a href="/pharmacists">เภสัชกร</a>
+        <span class="nav-user">👤 {{ user.username }}</span>
+        <form method="post" action="/logout" style="margin:0;">
+            <button class="btn-logout">🚪 ออกจากระบบ</button>
+        </form>
+    </div>
+</div>
+
+<div class="container">
+    <a href="/" class="btn-back">← กลับหน้าหลัก</a>
+
+    {% if request.query_params.get('success') %}
+    <div class="success-box">✅ บันทึกสถานะสำเร็จแล้ว</div>
+    {% endif %}
+
+    <!-- ข้อมูลเอกสาร -->
+    <div class="card">
+        <h2 style="color:#1a73e8; margin-bottom:20px;">📄 ข้อมูลเอกสาร</h2>
+        <div class="info-row">
+            <label>HN</label>
+            <span>{{ doc.hn }}</span>
+        </div>
+        <div class="info-row">
+            <label>ชื่อ-สกุล</label>
+            <span>{{ doc.patient_name }}</span>
+        </div>
+        <div class="info-row">
+            <label>สิทธิ</label>
+            <span>{{ doc.rights }}</span>
+        </div>
+        <div class="info-row">
+            <label>แพทย์</label>
+            <span>{{ doc.doctor }}</span>
+        </div>
+        <div class="info-row">
+            <label>ยา</label>
+            <span>
+                {% if doc.medicines %}
+                <ul class="med-list">
+                    {% for dm in doc.medicines %}
+                    <li>💊 {{ dm.medicine.name }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}-{% endif %}
+            </span>
+        </div>
+        <div class="info-row">
+            <label>วันที่สร้าง</label>
+            <span>{{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        </div>
+    </div>
+
+    <!-- อัปเดตสถานะ -->
+    <div class="card">
+        <h2 style="color:#1a73e8; margin-bottom:20px;">🔄 อัปเดตสถานะ</h2>
+        <form method="post" action="/scan/{{ doc.id }}">
+            <div class="form-group">
+                <label>สถานะ *</label>
+                <select name="status_id" required>
+                    <option value="">-- เลือกสถานะ --</option>
+                    {% for s in statuses %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>หมายเหตุ</label>
+                <textarea name="note" rows="3"
+                    placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+            </div>
+            <button type="submit" class="btn-submit">
+                💾 บันทึกสถานะ
+            </button>
+        </form>
+    </div>
+
+    <!-- ประวัติ -->
+    {% if histories %}
+    <div class="card">
+        <h3 style="color:#1a73e8; margin-bottom:15px;">📋 ประวัติสถานะ</h3>
+        {% for h in histories %}
+        <div class="history-item">
+            <div class="status">{{ h.status.name }}</div>
+            {% if h.note %}
+            <div style="color:#555; margin: 3px 0;">{{ h.note }}</div>
+            {% endif %}
+            <div class="time">
+                🕐 {{ h.scanned_at.strftime('%d/%m/%Y %H:%M') }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

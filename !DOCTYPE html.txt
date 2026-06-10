@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามเอกสารยา</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Sarabun', sans-serif; background: #f0f4f8; }
+        .navbar {
+            background: #1a73e8; color: white; padding: 15px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; }
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none;
+            cursor: pointer; font-size: 14px; text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-success { background: #34a853; color: white; }
+        .card {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px;
+        }
+        .card-header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 10px;
+        }
+        .badge {
+            padding: 5px 12px; border-radius: 20px;
+            font-size: 12px; background: #e8f0fe; color: #1a73e8;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .empty { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>💊 ระบบติดตามเอกสารยา</h1>
+        <div>
+            <a href="/">หน้าหลัก</a>
+            <a href="/create">สร้างเอกสาร</a>
+            <a href="/history">ประวัติ</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2>รายการเอกสารทั้งหมด</h2>
+                <a href="/create" class="btn btn-primary">+ สร้างเอกสารใหม่</a>
+            </div>
+
+            {% if documents %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>HN</th>
+                        <th>ชื่อ-สกุล</th>
+                        <th>ยา</th>
+                        <th>สิทธิ</th>
+                        <th>แพทย์</th>
+                        <th>วันที่สร้าง</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>{{ doc.hn }}</td>
+                        <td>{{ doc.patient_name }}</td>
+                        <td>{{ doc.medicine }}</td>
+                        <td><span class="badge">{{ doc.rights }}</span></td>
+                        <td>{{ doc.doctor }}</td>
+                        <td>{{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            <a href="/document/{{ doc.id }}" class="btn btn-success">ดูเอกสาร</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty">
+                <p>ยังไม่มีเอกสาร กด <a href="/create">สร้างเอกสารใหม่</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
