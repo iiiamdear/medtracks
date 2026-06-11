@@ -1,25 +1,41 @@
-<div class="main-content">
-  <div class="topbar">
-    <h5 class="mb-0 fw-bold text-secondary">
-      {% block page_title %}{% endblock %}
-    </h5>
-    <span class="text-muted small">
-      <i class="bi bi-clock me-1"></i>
-      <span id="clock"></span>
-    </span>
-  </div>
-  
-  {% block content %}{% endblock %}
-</div>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามยา QR Tracking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{{ url_for('index') }}" class="text-xl font-bold">💊 Drug Tracking System</a>
+            <div class="space-x-4">
+                <a href="{{ url_for('index') }}" class="hover:underline">หน้าหลัก</a>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('create_doc') }}" class="hover:underline">➕ สร้างเอกสาร</a>
+                    <a href="{{ url_for('history') }}" class="hover:underline">📂 ประวัติ (Admin)</a>
+                    <span class="text-yellow-300">| สวัสดี, {{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="bg-red-500 px-3 py-1 rounded text-sm hover:bg-red-600">ออกจากระบบ</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="bg-green-500 px-3 py-1 rounded text-sm hover:bg-green-600">Login Admin</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  function updateClock() {
-    const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleTimeString('th-TH');
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
-</script>
+    <div class="container mx-auto p-6">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-4 text-white bg-{% if category == 'success' %}green{% elif category == 'danger' %}red{% else %}blue{% endif %}-500 rounded shadow">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
 </body>
 </html>
