@@ -1,159 +1,169 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บันทึกสถานะการส่งยา #{{ doc.id }}</title>
-    <!-- ใช้ Tailwind CSS เพื่อให้แสดงผลบนมือถือได้อย่างสวยงาม -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ติดตามเอกสาร #{{ doc.id }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Sarabun', sans-serif; }
+    body { background: #f0f4f8; }
+    .step-card { border-radius: 12px; transition: all 0.2s; }
+    .step-done { border: 2px solid #27ae60; background: #eafaf1; }
+    .step-next { border: 2px solid #2980b9; background: #eaf4fb; }
+    .step-wait { border: 2px solid #dee2e6; background: #fff; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col justify-between">
+<body>
+<div class="container py-4" style="max-width:600px;">
 
-    <div class="container mx-auto max-w-md p-4">
-        <!-- การ์ดรายละเอียดเอกสาร -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-4 border border-gray-100">
-            <div class="flex justify-between items-center mb-4">
-                <span class="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full">HN: {{ doc.hn }}</span>
-                <span class="text-gray-400 text-xs">ID: #{{ doc.id }}</span>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-1">{{ doc.patient_name }}</h2>
-            <p class="text-sm text-gray-500 mb-3">แพทย์ผู้สั่ง: {{ doc.doctor }}</p>
-            
-            <div class="border-t pt-3">
-                <p class="text-sm text-gray-600"><strong>สิทธิ์การรักษา:</strong> {{ doc.rights }}</p>
-                <p class="text-sm text-gray-600"><strong>หมายเหตุ:</strong> <span class="text-red-500">{{ doc.note or '-' }}</span></p>
-            </div>
+  <!-- Header -->
+  <div class="text-center mb-4">
+    <i class="bi bi-capsule-pill text-success" style="font-size:2.5rem;"></i>
+    <h5 class="fw-bold mt-2">MedTrack</h5>
+    <p class="text-muted small">ระบบติดตามเอกสารยา</p>
+  </div>
+
+  <!-- Doc Info -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-6">
+          <small class="text-muted">HN</small>
+          <p class="fw-bold mb-1">{{ doc.hn }}</p>
+          <small class="text-muted">ชื่อผู้ป่วย</small>
+          <p class="fw-bold mb-0">{{ doc.patient_name }}</p>
         </div>
-
-        <!-- ส่วนแจ้งสถานะการบันทึก (Success / Error) -->
-        {% if success %}
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-xl mb-4 text-center font-bold">
-            🎉 บันทึกสถานะสำเร็จเรียบร้อยแล้ว!
+        <div class="col-6">
+          <small class="text-muted">แพทย์</small>
+          <p class="fw-bold mb-1">{{ doc.doctor }}</p>
+          <small class="text-muted">สิทธิ์</small>
+          <p class="fw-bold mb-0">{{ doc.rights }}</p>
         </div>
-        {% endif %}
-
-        {% if error %}
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 text-center font-bold">
-            ⚠️ {{ error }}
-        </div>
-        {% endif %}
-
-        <!-- แสดง Timeline 4 ขั้นตอนการสแกน -->
-        <div class="bg-white rounded-2xl shadow-sm p-6 mb-4 border border-gray-100">
-            <h3 class="font-bold text-gray-700 mb-4">📍 เส้นทางการส่งเอกสาร (4 ขั้นตอน)</h3>
-            <div class="relative border-l-2 border-gray-200 ml-3 space-y-6">
-                
-                <!-- สเต็ปที่ 1 -->
-                <div class="mb-4 relative">
-                    <div class="absolute -left-[17px] mt-1.5 w-3.5 h-3.5 rounded-full {% if doc.step1_scanned_at %}bg-green-500{% else %}bg-gray-300{% endif %}"></div>
-                    <div class="pl-6">
-                        <p class="font-semibold text-sm {% if doc.step1_scanned_at %}text-green-600{% else %}text-gray-400{% endif %}">ขั้นตอนที่ 1: เภสัชกรจัดส่งเอกสาร</p>
-                        {% if doc.step1_scanned_at %}
-                            <p class="text-xs text-gray-500">ผู้ส่ง: {{ doc.step1_name }} | {{ doc.step1_scanned_at|thdate }}</p>
-                        {% else %}
-                            <p class="text-xs text-gray-400 italic">ยังไม่ได้ดำเนินการ</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- สเต็ปที่ 2 -->
-                <div class="mb-4 relative">
-                    <div class="absolute -left-[17px] mt-1.5 w-3.5 h-3.5 rounded-full {% if doc.step2_scanned_at %}bg-green-500{% else %}bg-gray-300{% endif %}"></div>
-                    <div class="pl-6">
-                        <p class="font-semibold text-sm {% if doc.step2_scanned_at %}text-green-600{% else %}text-gray-400{% endif %}">ขั้นตอนที่ 2: งานประกันรับเอกสาร</p>
-                        {% if doc.step2_scanned_at %}
-                            <p class="text-xs text-gray-500">ผู้รับ: {{ doc.step2_name }} | {{ doc.step2_scanned_at|thdate }}</p>
-                        {% else %}
-                            <p class="text-xs text-gray-400 italic">ยังไม่ได้ดำเนินการ</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- สเต็ปที่ 3 -->
-                <div class="mb-4 relative">
-                    <div class="absolute -left-[17px] mt-1.5 w-3.5 h-3.5 rounded-full {% if doc.step3_scanned_at %}bg-green-500{% else %}bg-gray-300{% endif %}"></div>
-                    <div class="pl-6">
-                        <p class="font-semibold text-sm {% if doc.step3_scanned_at %}text-green-600{% else %}text-gray-400{% endif %}">ขั้นตอนที่ 3: งานธุรการรับเอกสาร</p>
-                        {% if doc.step3_scanned_at %}
-                            <p class="text-xs text-gray-500">ผู้รับ: {{ doc.step3_name }} | {{ doc.step3_scanned_at|thdate }}</p>
-                        {% else %}
-                            <p class="text-xs text-gray-400 italic">ยังไม่ได้ดำเนินการ</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- สเต็ปที่ 4 -->
-                <div class="mb-4 relative">
-                    <div class="absolute -left-[17px] mt-1.5 w-3.5 h-3.5 rounded-full {% if doc.step4_scanned_at %}bg-green-500{% else %}bg-gray-300{% endif %}"></div>
-                    <div class="pl-6">
-                        <p class="font-semibold text-sm {% if doc.step4_scanned_at %}text-green-600{% else %}text-gray-400{% endif %}">ขั้นตอนที่ 4: งานจัดซื้อรับเอกสาร</p>
-                        {% if doc.step4_scanned_at %}
-                            <p class="text-xs text-gray-500">ผู้รับ: {{ doc.step4_name }} | {{ doc.step4_scanned_at|thdate }}</p>
-                        {% else %}
-                            <p class="text-xs text-gray-400 italic">ยังไม่ได้ดำเนินการ</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ฟอร์มสแกนส่งงาน (แสดงอัตโนมัติตามขั้นตอนที่ต้องทำถัดไป) -->
-        {% if not doc.is_finished %}
-            {% set next_step = 0 %}
-            {% set step_label = "" %}
-            
-            {% if not doc.step1_scanned_at %}
-                {% set next_step = 1 %}
-                {% set step_label = "สแกนขั้นที่ 1: เภสัชกรจัดส่งเอกสาร" %}
-            {% elif not doc.step2_scanned_at %}
-                {% set next_step = 2 %}
-                {% set step_label = "สแกนขั้นที่ 2: งานประกันรับเอกสาร" %}
-            {% elif not doc.step3_scanned_at %}
-                {% set next_step = 3 %}
-                {% set step_label = "สแกนขั้นที่ 3: งานธุรการรับเอกสาร" %}
-            {% elif not doc.step4_scanned_at %}
-                {% set next_step = 4 %}
-                {% set step_label = "สแกนขั้นที่ 4: งานจัดซื้อรับเอกสาร" %}
-            {% endif %}
-
-            {% if next_step > 0 %}
-            <div class="bg-blue-600 rounded-2xl shadow-lg p-6 text-white">
-                <h4 class="font-bold text-lg mb-2">📥 ดำเนินการบันทึกสถานะ</h4>
-                <p class="text-blue-100 text-xs mb-4">ขณะนี้ถึงขั้นตอน: <strong>{{ step_label }}</strong></p>
-                
-                <form method="POST" action="/track/{{ doc.id }}">
-                    <input type="hidden" name="step" value="{{ next_step }}">
-                    
-                    <div class="mb-4">
-                        <label class="block text-xs font-bold text-blue-200 mb-1">ชื่อผู้บันทึกรายการ</label>
-                        <input type="text" name="scanner_name" required placeholder="กรอกชื่อ-นามสกุลของคุณ" 
-                               class="w-full p-3 rounded-lg text-gray-800 focus:ring-2 focus:ring-yellow-400 outline-none">
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold py-3 rounded-lg transition-colors text-center shadow">
-                        💾 บันทึกรับ/ส่งเอกสาร
-                    </button>
-                </form>
-            </div>
-            {% else %}
-            <!-- ครบ 4 ขั้นตอนแล้ว รอแอดมินมาปิดงาน -->
-            <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded-xl text-center">
-                👏 ดำเนินการครบทั้ง 4 ขั้นตอนหลักแล้ว อยู่ระหว่างรอ Admin กด Finish ปิดงาน
-            </div>
-            {% endif %}
-        {% else %}
-            <div class="bg-gray-200 text-gray-700 p-4 rounded-xl text-center font-bold">
-                🔒 เอกสารนี้เสร็จสิ้นกระบวนการเรียบร้อยแล้ว (Finish)
-            </div>
-        {% endif %}
-
+      </div>
     </div>
+  </div>
 
-    <!-- ส่วนท้ายแสดงเครดิตเล็กๆ -->
-    <footer class="text-center p-4 text-xs text-gray-400">
-        ระบบติดตามเอกสารยาโรงพยาบาล © {{ now_th().year }}
-    </footer>
+  <!-- Alert -->
+  {% if success %}
+  <div class="alert alert-success">
+    <i class="bi bi-check-circle-fill me-2"></i>บันทึกสำเร็จ!
+  </div>
+  {% endif %}
+  {% if error %}
+  <div class="alert alert-danger">
+    <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  </div>
+  {% endif %}
 
+  <!-- Steps Status ✅ แก้เป็น 4 ขั้นตอน -->
+  <div class="row g-3 mb-4">
+    {% set steps = [
+      (1, "เภสัชกรส่ง",  "bi-person-check",   doc.step1_scanned_at, doc.step1_name),
+      (2, "งานประกัน",   "bi-shield-check",    doc.step2_scanned_at, doc.step2_name),
+      (3, "งานธุรการ",   "bi-building",        doc.step3_scanned_at, doc.step3_name),
+      (4, "งานจัดซื้อยา","bi-cart-check",      doc.step4_scanned_at, doc.step4_name)
+    ] %}
+    {% for num, label, icon, scanned_at, name in steps %}
+    <div class="col-6 col-md-3">
+      <div class="card text-center py-3
+        {% if scanned_at %}step-done
+        {% elif doc.step_status.current == num - 1 %}step-next
+        {% else %}step-wait{% endif %}">
+
+        {% if scanned_at %}
+        <i class="bi {{ icon }} text-success fs-4"></i>
+        {% elif doc.step_status.current == num - 1 %}
+        <i class="bi {{ icon }} text-primary fs-4"></i>
+        {% else %}
+        <i class="bi {{ icon }} text-muted fs-4"></i>
+        {% endif %}
+
+        <p class="small fw-bold mb-0 mt-1">{{ label }}</p>
+
+        {% if scanned_at %}
+        <p class="text-success mb-0 mt-1" style="font-size:0.7rem;">
+          <i class="bi bi-check2"></i> {{ name }}
+        </p>
+        <p class="text-muted mb-0" style="font-size:0.65rem;">
+          {{ scanned_at | thdate }}
+        </p>
+        {% elif doc.step_status.current == num - 1 %}
+        <p class="text-primary mb-0 mt-1" style="font-size:0.7rem;">
+          รอสแกน
+        </p>
+        {% else %}
+        <p class="text-muted mb-0 mt-1" style="font-size:0.7rem;">
+          รอดำเนินการ
+        </p>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Progress Bar ✅ เพิ่มใหม่ -->
+  <div class="mb-4">
+    <div class="d-flex justify-content-between small text-muted mb-1">
+      <span>ความคืบหน้า</span>
+      <span>{{ doc.step_status.current }}/4 ขั้นตอน</span>
+    </div>
+    <div class="progress" style="height:10px; border-radius:10px;">
+      <div class="progress-bar bg-{{ doc.step_status.color }}"
+           style="width: {{ (doc.step_status.current / 4 * 100)|int }}%;
+                  border-radius:10px; transition: width 0.5s;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan Form ✅ แก้เป็น next_step <= 4 -->
+  {% if not doc.is_finished %}
+    {% set next_step = doc.step_status.current + 1 %}
+    {% if next_step <= 4 %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0">
+          <i class="bi bi-qr-code-scan me-2"></i>
+          {% if next_step == 1 %}บันทึกขั้นที่ 1 - เภสัชกรส่ง
+          {% elif next_step == 2 %}บันทึกขั้นที่ 2 - งานประกัน
+          {% elif next_step == 3 %}บันทึกขั้นที่ 3 - งานธุรการ
+          {% elif next_step == 4 %}บันทึกขั้นที่ 4 - งานจัดซื้อยา
+          {% endif %}
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="step" value="{{ next_step }}">
+          <div class="mb-3">
+            <label class="form-label fw-bold">ชื่อผู้รับเอกสาร</label>
+            <input type="text" name="scanner_name"
+                   class="form-control form-control-lg"
+                   placeholder="กรอกชื่อ..." required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 py-2">
+            <i class="bi bi-check2 me-2"></i>ยืนยันรับเอกสาร
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success text-center py-4">
+      <i class="bi bi-check-circle-fill text-success me-2" style="font-size:2rem;"></i>
+      <p class="fw-bold fs-5 mb-0 mt-2">ครบทุกขั้นตอนแล้ว!</p>
+      <p class="text-muted small mt-1">เอกสารผ่านครบ 4 ขั้นตอน</p>
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="alert alert-secondary text-center py-4">
+    <i class="bi bi-lock-fill me-2" style="font-size:2rem;"></i>
+    <p class="fw-bold mb-0 mt-2">เอกสารนี้ปิดแล้ว</p>
+    <p class="text-muted small mt-1">ไม่สามารถสแกนเพิ่มได้</p>
+  </div>
+  {% endif %}
+
+</div>
 </body>
 </html>
