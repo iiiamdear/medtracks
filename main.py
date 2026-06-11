@@ -5,20 +5,31 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import hashlib, qrcode, io, base64, os
 import models, database
 
-# สร้างตารางในฐานข้อมูล (หากยังไม่มี)
+# ===== TIMEZONE ไทย =====
+TH_TZ = timezone(timedelta(hours=7))
+
+def now_th():
+    return datetime.now(TH_TZ)
+
+def format_datetime_th(dt):
+    if not dt:
+        return "-"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc).astimezone(TH_TZ)
+    return dt.strftime('%d/%m/%Y %H:%M น.')
+
 models.Base.metadata.create_all(bind=database.engine)
 
-# ===== LIFESPAN (รันเมื่อเปิดเซิร์ฟเวอร์) =====
+# ===== LIFESPAN =====
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db = database.SessionLocal()
     try:
-        # สร้างบัญชี Admin เริ่มต้น (หากยังไม่มี)
         if not db.query(models.User).filter(models.User.username == "admin").first():
             db.add(models.User(
                 username="admin",
@@ -26,8 +37,7 @@ async def lifespan(app: FastAPI):
                 role="admin"
             ))
             print("✅ Created default admin: admin / admin1234")
-            
-        # สร้างบัญชี Staff/User เริ่มต้น (หากยังไม่มี)
+
         if not db.query(models.User).filter(models.User.username == "staff").first():
             db.add(models.User(
                 username="staff",
@@ -35,7 +45,7 @@ async def lifespan(app: FastAPI):
                 role="user"
             ))
             print("✅ Created default staff: staff / staff1234")
-            
+
         db.commit()
     finally:
         db.close()
@@ -43,6 +53,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
+templates.env.filters["thdate"] = format_datetime_th   # ✅ เพิ่ม filter
 
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -69,14 +80,12 @@ def get_current_user(request: Request, db: Session):
     return db.query(models.User).filter(
         models.User.username == username).first()
 
-# ฟังก์ชันตรวจสอบระดับสิทธิ์การเข้าใช้งานหน้าต่าง ๆ
 def check_auth(request: Request, db: Session, allowed_roles: List[str] = None):
     user = get_current_user(request, db)
     if not user:
         return None, RedirectResponse(url="/login", status_code=302)
-    
+
     if allowed_roles and user.role not in allowed_roles:
-        # หากสิทธิ์ไม่ถึง แสดงหน้า Access Denied (403)
         html_content = """
         <html>
             <head>
@@ -95,7 +104,7 @@ def check_auth(request: Request, db: Session, allowed_roles: List[str] = None):
         </html>
         """
         return None, HTMLResponse(content=html_content, status_code=403)
-        
+
     return user, None
 
 def make_qr_b64(url: str) -> str:
@@ -112,19 +121,18 @@ def get_base_url(request: Request) -> str:
 
 def get_step_status(doc) -> dict:
     if doc.step3_scanned_at:
-        return {"current": 3, "label": "งานจัดซื้อรับแล้ว",    "color": "success"}
+        return {"current": 3, "label": "งานจัดซื้อรับแล้ว",  "color": "success"}
     elif doc.step2_scanned_at:
-        return {"current": 2, "label": "งานประกันรับแล้ว",      "color": "primary"}
+        return {"current": 2, "label": "งานประกันรับแล้ว",    "color": "primary"}
     elif doc.step1_scanned_at:
-        return {"current": 1, "label": "เภสัชกรจัดส่งแล้ว",    "color": "info"}
+        return {"current": 1, "label": "เภสัชกรจัดส่งแล้ว",  "color": "info"}
     else:
-        return {"current": 0, "label": "รอดำเนินการ",           "color": "secondary"}
+        return {"current": 0, "label": "รอดำเนินการ",         "color": "secondary"}
 
 # ===== AUTH & REGISTER =====
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request, success: Optional[str] = None):
-    # หากสมัครสมาชิกสำเร็จ จะมีข้อความแจ้งเตือนสีเขียวขึ้นมา
     success_msg = "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วยบัญชีของคุณ" if success == "registered" else None
     return templates.TemplateResponse(
         request=request, name="login.html",
@@ -151,14 +159,12 @@ def logout():
     response.delete_cookie("username")
     return response
 
-# GET: แสดงหน้าสมัครสมาชิก
 @app.get("/register", response_class=HTMLResponse)
 def register_get(request: Request):
     return templates.TemplateResponse(
         request=request, name="register.html",
         context={"error": None})
 
-# POST: บันทึกข้อมูลสมัครสมาชิก
 @app.post("/register")
 def register_post(request: Request,
                   username: str = Form(...),
@@ -166,39 +172,31 @@ def register_post(request: Request,
                   confirm_password: str = Form(...),
                   db: Session = Depends(get_db)):
     username = username.strip()
-    
-    # 1. ตรวจสอบว่ารหัสผ่านตรงกันไหม
+
     if password != confirm_password:
         return templates.TemplateResponse(
             request=request, name="register.html",
             context={"error": "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"})
-            
-    # 2. ตรวจสอบว่ามี Username นี้ในระบบหรือยัง
-    exist_user = db.query(models.User).filter(models.User.username == username).first()
-    if exist_user:
+
+    if db.query(models.User).filter(models.User.username == username).first():
         return templates.TemplateResponse(
             request=request, name="register.html",
             context={"error": "ชื่อผู้ใช้นี้ถูกใช้งานไปแล้ว"})
-            
-    # 3. บันทึกลงฐานข้อมูล (กำหนดบทบาทเริ่มต้นเป็น "user")
-    new_user = models.User(
+
+    db.add(models.User(
         username=username,
         password=hash_password(password),
         role="user"
-    )
-    db.add(new_user)
+    ))
     db.commit()
-    
-    # สมัครเสร็จแล้ว ส่งกลับไปหน้า Login พร้อมแนบ parameter ความสำเร็จ
     return RedirectResponse(url="/login?success=registered", status_code=302)
 
-# ===== USER MANAGEMENT (เฉพาะ ADMIN เท่านั้น) =====
+# ===== USER MANAGEMENT =====
 
 @app.get("/users", response_class=HTMLResponse)
 def users_get(request: Request, db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
-
     users = db.query(models.User).all()
     return templates.TemplateResponse(
         request=request, name="users.html",
@@ -213,9 +211,8 @@ def user_add(request: Request,
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
 
-    exist_user = db.query(models.User).filter(models.User.username == username).first()
-    if exist_user:
-         return RedirectResponse(url="/users?error=exists", status_code=302)
+    if db.query(models.User).filter(models.User.username == username).first():
+        return RedirectResponse(url="/users?error=exists", status_code=302)
 
     db.add(models.User(
         username=username.strip(),
@@ -226,11 +223,11 @@ def user_add(request: Request,
     return RedirectResponse(url="/users", status_code=302)
 
 @app.post("/users/delete/{user_id}")
-def user_delete(user_id: int, request: Request, db: Session = Depends(get_db)):
+def user_delete(user_id: int, request: Request,
+                db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
 
-    # ห้ามแอดมินลบตัวเอง
     if user.id == user_id:
         return RedirectResponse(url="/users?error=self_delete", status_code=302)
 
@@ -291,16 +288,16 @@ def create_get(request: Request, db: Session = Depends(get_db)):
 @app.post("/create")
 def create_post(
     request      : Request,
-    hn           : str          = Form(...),
-    patient_name : str          = Form(...),
-    rights       : str          = Form(...),
-    doctor       : str          = Form(...),
-    pharmacist_id: Optional[str]= Form(None),
-    note         : str          = Form(""),
-    medicine_ids : List[str]    = Form(default=[]),
-    doses        : List[str]    = Form(default=[]),
-    quantities   : List[str]    = Form(default=[]),   
-    unit_prices  : List[str]    = Form(default=[]),   
+    hn           : str           = Form(...),
+    patient_name : str           = Form(...),
+    rights       : str           = Form(...),
+    doctor       : str           = Form(...),
+    pharmacist_id: Optional[str] = Form(None),
+    note         : str           = Form(""),
+    medicine_ids : List[str]     = Form(default=[]),
+    doses        : List[str]     = Form(default=[]),
+    quantities   : List[str]     = Form(default=[]),
+    unit_prices  : List[str]     = Form(default=[]),
     db: Session = Depends(get_db)
 ):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
@@ -316,7 +313,7 @@ def create_post(
         note         = note,
         pharmacist_id= ph_id,
         user_id      = user.id,
-        created_at   = datetime.now()
+        created_at   = now_th()    # ✅ เวลาไทย
     )
     db.add(doc)
     db.flush()
@@ -340,8 +337,8 @@ def create_post(
             medicine_id = med.id,
             dose        = dose,
             quantity    = qty,
-            unit_price  = unit_price,   
-            total_price = row_total     
+            unit_price  = unit_price,
+            total_price = row_total
         ))
         grand_total += row_total
 
@@ -356,17 +353,17 @@ def finish_document(doc_id: int, request: Request,
                     db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
     if response: return response
-    
+
     doc = db.query(models.Document).filter(
         models.Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
     doc.is_finished = True
-    doc.finished_at = datetime.now()
+    doc.finished_at = now_th()    # ✅ เวลาไทย
     db.commit()
     return RedirectResponse(url="/", status_code=302)
 
-# ===== DELETE (ADMIN ONLY) =====
+# ===== DELETE =====
 
 @app.post("/delete/{doc_id}")
 def delete_document(doc_id: int, request: Request,
@@ -412,7 +409,7 @@ def view_document(doc_id: int, request: Request,
                   db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
     if response: return response
-    
+
     doc = db.query(models.Document).filter(
         models.Document.id == doc_id).first()
     if not doc:
@@ -428,7 +425,7 @@ def view_document(doc_id: int, request: Request,
         context={"doc": doc, "qr_b64": qr_b64,
                  "track_url": track_url, "user": user})
 
-# ===== TRACKING (สาธารณะ ไม่จำเป็นต้องล็อกอิน สำหรับแสกน QR) =====
+# ===== TRACKING =====
 
 @app.get("/track/{doc_id}", response_class=HTMLResponse)
 def track_get(doc_id: int, request: Request,
@@ -453,19 +450,18 @@ def track_post(doc_id      : int,
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    now   = datetime.now()
     error = None
 
     if doc.is_finished:
         error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
     elif step == 1 and not doc.step1_scanned_at:
-        doc.step1_scanned_at = now
+        doc.step1_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step1_name       = scanner_name
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
-        doc.step2_scanned_at = now
+        doc.step2_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step2_name       = scanner_name
     elif step == 3 and doc.step2_scanned_at and not doc.step3_scanned_at:
-        doc.step3_scanned_at = now
+        doc.step3_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step3_name       = scanner_name
     else:
         error = "ไม่สามารถบันทึกได้ กรุณาตรวจสอบขั้นตอน"
@@ -487,7 +483,7 @@ def track_post(doc_id      : int,
 def medicines_get(request: Request, db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
     if response: return response
-    
+
     meds = db.query(models.Medicine).order_by(models.Medicine.name).all()
     return templates.TemplateResponse(
         request=request, name="medicines.html",
@@ -496,7 +492,7 @@ def medicines_get(request: Request, db: Session = Depends(get_db)):
 @app.post("/medicines/add")
 def medicine_add(
     request : Request,
-    code    : str   = Form(""),     
+    code    : str   = Form(""),
     name    : str   = Form(...),
     unit    : str   = Form(...),
     price   : float = Form(...),
@@ -542,7 +538,7 @@ def medicine_delete(med_id: int, request: Request,
                     db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
-    
+
     med = db.query(models.Medicine).filter(
         models.Medicine.id == med_id).first()
     if med:
@@ -556,7 +552,7 @@ def medicine_delete(med_id: int, request: Request,
 def pharmacists_get(request: Request, db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
     if response: return response
-    
+
     pharmacists = db.query(models.Pharmacist).all()
     return templates.TemplateResponse(
         request=request, name="pharmacists.html",
@@ -570,7 +566,7 @@ def pharmacist_add(request: Request,
                    db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
-    
+
     db.add(models.Pharmacist(name=name, phone=phone, email=email))
     db.commit()
     return RedirectResponse(url="/pharmacists", status_code=302)
@@ -580,6 +576,10 @@ def pharmacist_delete(ph_id: int, request: Request,
                       db: Session = Depends(get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
-    
+
     ph = db.query(models.Pharmacist).filter(
-        models.Pharmacist.id == ph_
+        models.Pharmacist.id == ph_id).first()
+    if ph:
+        db.delete(ph)
+        db.commit()
+    return RedirectResponse(url="/pharmacists", status_code=302)
