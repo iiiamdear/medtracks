@@ -83,9 +83,10 @@ def make_qr_b64(url: str) -> str:
 def get_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
+# 🛠️ ปรับปรุง: การ Mapping สเต็ปให้อ่านค่าสถานะตรงหน้ากาก Dashboard ได้อย่างชัดเจน
 def get_step_status(doc) -> dict:
     if doc.step4_scanned_at:
-        return {"current": 4, "label": "งานจัดซื้อยารับแล้ว", "color": "success"}
+        return {"current": 4, "label": "งานจัดซื้อยารับแล้ว (รอแอดมินปิดงาน)", "color": "success"}
     elif doc.step3_scanned_at:
         return {"current": 3, "label": "งานธุรการรับแล้ว",    "color": "warning"}
     elif doc.step2_scanned_at:
@@ -93,16 +94,14 @@ def get_step_status(doc) -> dict:
     elif doc.step1_scanned_at:
         return {"current": 1, "label": "เภสัชกรจัดส่งแล้ว",  "color": "info"}
     else:
-        return {"current": 0, "label": "รอดำเนินการ",         "color": "secondary"}
+        return {"current": 0, "label": "รอดำเนินการสแกนสเต็ป 1", "color": "secondary"}
 
 # ===== LIFESPAN =====
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # สร้าง table ก่อน
     models.Base.metadata.create_all(bind=database.engine)
 
-    # สร้าง default users
     db = database.SessionLocal()
     try:
         if not db.query(models.User).filter(models.User.username == "admin").first():
@@ -133,7 +132,8 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 templates.env.filters["thdate"] = format_datetime_th
 
-os.makedirs("static", exist_ok=True)
+if not os.path.exists("static"):
+    os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ===== AUTH =====
@@ -244,7 +244,7 @@ def user_delete(user_id: int, request: Request,
         db.commit()
     return RedirectResponse(url="/users", status_code=302)
 
-# ===== HOME =====
+# ===== HOME (แก้ไข: ตัดระบบ Stats 8 แถบออกเพื่อให้โค้ดคลีนขึ้น) =====
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
@@ -258,20 +258,10 @@ def index(request: Request, db: Session = Depends(get_db)):
     for doc in active_docs:
         doc.step_status = get_step_status(doc)
 
-    stats = {
-        "total_active" : len(active_docs),
-        "step0"        : sum(1 for d in active_docs if d.step_status["current"] == 0),
-        "step1"        : sum(1 for d in active_docs if d.step_status["current"] == 1),
-        "step2"        : sum(1 for d in active_docs if d.step_status["current"] == 2),
-        "step3"        : sum(1 for d in active_docs if d.step_status["current"] == 3),
-        "step4"        : sum(1 for d in active_docs if d.step_status["current"] == 4),
-        "total_meds"   : db.query(models.Medicine).count(),
-        "total_users"  : db.query(models.User).count(),
-    }
-
+    # ส่งเฉพาะ user และ docs ไปแสดงผล (ไม่มีตัวแปร stats แล้ว)
     return templates.TemplateResponse(
         request=request, name="index.html",
-        context={"user": user, "docs": active_docs, "stats": stats})
+        context={"user": user, "docs": active_docs})
 
 # ===== CREATE =====
 
@@ -359,7 +349,7 @@ def create_post(
 @app.post("/finish/{doc_id}")
 def finish_document(doc_id: int, request: Request,
                     db: Session = Depends(get_db)):
-    user, response = check_auth(request, db, allowed_roles=["admin", "user"])
+    user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
 
     doc = db.query(models.Document).filter(
@@ -392,7 +382,7 @@ def delete_document(doc_id: int, request: Request,
 def history(request: Request,
             search: str = "",
             db: Session = Depends(get_db)):
-    user, response = check_auth(request, db, allowed_roles=["admin", "user"])
+    user, response = check_auth(request, db, allowed_roles=["admin"])
     if response: return response
 
     query = db.query(models.Document).filter(
@@ -459,9 +449,13 @@ def track_post(doc_id      : int,
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
     error = None
+    scanner_name = scanner_name.strip()
 
-    if doc.is_finished:
-        error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
+    if not scanner_name:
+        error = "กรุณากรอกชื่อผู้บันทึกรายการ"
+    elif doc.is_finished:
+        error = "เอกสารนี้สิ้นสุดกระบวนการแล้ว ไม่สามารถทำการบันทึกเพิ่มได้"
+    
     elif step == 1 and not doc.step1_scanned_at:
         doc.step1_scanned_at = now_th()
         doc.step1_name       = scanner_name
@@ -475,7 +469,7 @@ def track_post(doc_id      : int,
         doc.step4_scanned_at = now_th()
         doc.step4_name       = scanner_name
     else:
-        error = "ไม่สามารถบันทึกได้ กรุณาตรวจสอบขั้นตอน"
+        error = "ไม่สามารถบันทึกได้ เนื่องจากข้ามขั้นตอนการดำเนินงาน หรือได้รับการบันทึกไปแล้วก่อนหน้านี้"
 
     if not error:
         db.commit()

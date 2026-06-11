@@ -40,7 +40,6 @@ class Medicine(Base):
     name       = Column(String, nullable=False)
     unit       = Column(String, nullable=False, default="เม็ด")
     price      = Column(Float,  default=0.0, nullable=False)
-
     created_at = Column(DateTime(timezone=True), default=now_th)
 
     items = relationship("DocumentItem", back_populates="medicine")
@@ -64,19 +63,22 @@ class Document(Base):
     is_finished = Column(Boolean,  default=False, nullable=False)
     finished_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Step 1 - เภสัชกร
+    # current_status: 'step1', 'step2', 'step3', 'step4'
+    current_status = Column(String, default="step1", nullable=False)
+
+    # Step 1 - เภสัชกรจัดส่งเอกสาร
     step1_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step1_name       = Column(String, nullable=True)
 
-    # Step 2 - งานประกัน
+    # Step 2 - งานประกันรับเอกสาร
     step2_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step2_name       = Column(String, nullable=True)
 
-    # Step 3 - งานธุรการ ✅
+    # Step 3 - งานธุรการ
     step3_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step3_name       = Column(String, nullable=True)
 
-    # Step 4 - งานจัดซื้อยา ✅ (ใหม่)
+    # Step 4 - งานจัดซื้อยา
     step4_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step4_name       = Column(String, nullable=True)
 
@@ -87,6 +89,22 @@ class Document(Base):
         back_populates="document",
         cascade="all, delete-orphan"
     )
+
+    # 💡 Helper Properties สำหรับนำไปแสดงผลหน้าเว็บได้ทันที
+    @property
+    def current_step_num(self):
+        mapping = {"step1": 1, "step2": 2, "step3": 3, "step4": 4}
+        return mapping.get(self.current_status, 1)
+
+    @property
+    def current_status_th(self):
+        mapping = {
+            "step1": "เภสัชกรจัดส่งเอกสาร",
+            "step2": "งานประกันรับเอกสาร",
+            "step3": "งานธุรการรับเอกสาร",
+            "step4": "งานจัดซื้อรับเอกสาร"
+        }
+        return mapping.get(self.current_status, "ไม่ทราบสถานะ")
 
 
 class DocumentItem(Base):

@@ -1,76 +1,65 @@
-{% extends "base.html" %}
-{% block title %}ประวัติ - MedTrack{% endblock %}
-{% block page_title %}<i class="bi bi-clock-history me-2"></i>ประวัติเอกสาร{% endblock %}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ประวัติรายการงานสำเร็จ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-gray-800 text-white p-4 shadow">
+        <div class="container mx-auto flex justify-between items-center">
+            <span class="text-lg font-bold text-yellow-400">📂 ประวัติการนำส่งยาสำเร็จ (สำหรับผู้ดูแลระบบ)</span>
+            <a href="/" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm font-semibold">กลับหน้าหลัก</a>
+        </div>
+    </nav>
 
-{% block content %}
-<div class="card">
-  <div class="card-header bg-white py-3">
-    <form class="d-flex gap-2" method="get" action="/history">
-      <input type="text" name="search" class="form-control"
-             placeholder="ค้นหา HN หรือชื่อผู้ป่วย..."
-             value="{{ search }}">
-      <button type="submit" class="btn btn-primary px-3">
-        <i class="bi bi-search"></i>
-      </button>
-      {% if search %}
-      <a href="/history" class="btn btn-outline-secondary">
-        <i class="bi bi-x-lg"></i>
-      </a>
-      {% endif %}
-    </form>
-  </div>
-  <div class="card-body p-0">
-    {% if docs %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th class="ps-3">#</th>
-            <th>HN</th>
-            <th>ชื่อผู้ป่วย</th>
-            <th>สิทธิ์</th>
-            <th>ราคารวม</th>
-            <th>สถานะ</th>
-            <th>ปิดเมื่อ</th>
-            <th class="text-center">ดู</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for doc in docs %}
-          <tr>
-            <td class="ps-3 text-muted small">{{ doc.id }}</td>
-            <td><span class="badge bg-light text-dark">{{ doc.hn }}</span></td>
-            <td class="fw-bold">{{ doc.patient_name }}</td>
-            <td>{{ doc.rights }}</td>
-            <td class="text-success fw-bold">
-              {{ "%.2f"|format(doc.total_price) }} บาท
-            </td>
-            <td>
-              {% set s = doc.step_status %}
-              <span class="badge bg-{{ s.color }}">{{ s.label }}</span>
-            </td>
-            <td class="small text-muted">
-              {% if doc.finished_at %}
-              {{ doc.finished_at.strftime('%d/%m/%Y %H:%M') }}
-              {% else %}-{% endif %}
-            </td>
-            <td class="text-center">
-              <a href="/document/{{ doc.id }}"
-                 class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-eye"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="container mx-auto p-6">
+        <!-- ฟอร์มค้นหาด่วน -->
+        <form method="GET" action="/history" class="mb-6 flex gap-2">
+            <input type="text" name="search" value="{{ search }}" placeholder="ค้นหาด้วยชื่อคนไข้ หรือ HN..." class="p-2 border rounded-lg w-full max-w-sm">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold text-sm">ค้นหา</button>
+        </form>
+
+        <!-- ตารางแสดงประวัติงาน -->
+        <div class="bg-white rounded-2xl shadow overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
+                        <th class="p-4">ID</th>
+                        <th class="p-4">HN/ชื่อคนไข้</th>
+                        <th class="p-4">ผู้บันทึกหลัก</th>
+                        <th class="p-4">ผู้รับปลายทาง (จัดซื้อ)</th>
+                        <th class="p-4">วันสำเร็จงาน</th>
+                        <th class="p-4">สรุปราคา</th>
+                        <th class="p-4">เครื่องมือ</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700 text-sm">
+                    {% for doc in docs %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-4">#{{ doc.id }}</td>
+                        <td class="p-4">
+                            <span class="font-bold text-gray-900">{{ doc.patient_name }}</span>
+                            <div class="text-xs text-gray-400">HN: {{ doc.hn }}</div>
+                        </td>
+                        <td class="p-4">{{ doc.pharmacist.name if doc.pharmacist else '-' }}</td>
+                        <td class="p-4 text-green-600 font-semibold">{{ doc.step4_name }}</td>
+                        <td class="p-4 text-gray-500">{{ doc.finished_at|thdate }}</td>
+                        <td class="p-4 font-bold text-blue-600">{{ "{:,.2f}".format(doc.total_price) }}</td>
+                        <td class="p-4">
+                            <a href="/document/{{ doc.id }}" class="text-blue-500 hover:underline">ดูรายละเอียดใบสั่งยา</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-gray-400 italic">ไม่พบรายการประวัติงานสำเร็จ</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-inbox" style="font-size:3rem;"></i>
-      <p class="mt-2">ไม่พบเอกสาร</p>
-    </div>
-    {% endif %}
-  </div>
-</div>
-{% endblock %}
+</body>
+</html>
