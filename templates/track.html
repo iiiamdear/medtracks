@@ -78,7 +78,7 @@
         <p class="small fw-bold mb-0 mt-1">{{ label }}</p>
         {% if scanned_at %}
         <p class="x-small text-muted mb-0" style="font-size:0.7rem;">
-          {{ scanned_at.strftime('%d/%m %H:%M') }}
+          {{ scanned_at | thdate }}  <!-- ✅ แก้จาก strftime เป็น thdate -->
         </p>
         {% endif %}
       </div>
