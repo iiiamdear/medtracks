@@ -10,16 +10,15 @@
   <style>
     * { font-family: 'Sarabun', sans-serif; }
     body { background: #f0f4f8; }
-    .step-card { border-radius: 12px; transition: all 0.2s; }
+    .step-card { border-radius: 12px; transition: all 0.2s; cursor: pointer; }
+    .step-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
     .step-done { border: 2px solid #27ae60; background: #eafaf1; }
     .step-next { border: 2px solid #2980b9; background: #eaf4fb; }
-    .step-wait { border: 2px solid #dee2e6; background: #fff; }
+    .step-wait { border: 2px solid #dee2e6; }
   </style>
 </head>
 <body>
 <div class="container py-4" style="max-width:600px;">
-
-  <!-- Header -->
   <div class="text-center mb-4">
     <i class="bi bi-capsule-pill text-success" style="font-size:2.5rem;"></i>
     <h5 class="fw-bold mt-2">MedTrack</h5>
@@ -58,87 +57,51 @@
   </div>
   {% endif %}
 
-  <!-- Steps Status ✅ แก้เป็น 4 ขั้นตอน -->
+  <!-- Steps Status -->
   <div class="row g-3 mb-4">
     {% set steps = [
-      (1, "เภสัชกรส่ง",  "bi-person-check",   doc.step1_scanned_at, doc.step1_name),
-      (2, "งานประกัน",   "bi-shield-check",    doc.step2_scanned_at, doc.step2_name),
-      (3, "งานธุรการ",   "bi-building",        doc.step3_scanned_at, doc.step3_name),
-      (4, "งานจัดซื้อยา","bi-cart-check",      doc.step4_scanned_at, doc.step4_name)
+      (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
+      (2, "งานประกัน",  doc.step2_scanned_at, doc.step2_name),
+      (3, "งานจัดซื้อ", doc.step3_scanned_at, doc.step3_name)
     ] %}
-    {% for num, label, icon, scanned_at, name in steps %}
-    <div class="col-6 col-md-3">
+    {% for num, label, scanned_at, name in steps %}
+    <div class="col-4">
       <div class="card text-center py-3
         {% if scanned_at %}step-done
         {% elif doc.step_status.current == num - 1 %}step-next
         {% else %}step-wait{% endif %}">
-
         {% if scanned_at %}
-        <i class="bi {{ icon }} text-success fs-4"></i>
-        {% elif doc.step_status.current == num - 1 %}
-        <i class="bi {{ icon }} text-primary fs-4"></i>
+        <i class="bi bi-check-circle-fill text-success fs-4"></i>
         {% else %}
-        <i class="bi {{ icon }} text-muted fs-4"></i>
+        <i class="bi bi-circle text-muted fs-4"></i>
         {% endif %}
-
         <p class="small fw-bold mb-0 mt-1">{{ label }}</p>
-
         {% if scanned_at %}
-        <p class="text-success mb-0 mt-1" style="font-size:0.7rem;">
-          <i class="bi bi-check2"></i> {{ name }}
-        </p>
-        <p class="text-muted mb-0" style="font-size:0.65rem;">
-          {{ scanned_at | thdate }}
-        </p>
-        {% elif doc.step_status.current == num - 1 %}
-        <p class="text-primary mb-0 mt-1" style="font-size:0.7rem;">
-          รอสแกน
-        </p>
-        {% else %}
-        <p class="text-muted mb-0 mt-1" style="font-size:0.7rem;">
-          รอดำเนินการ
+        <p class="x-small text-muted mb-0" style="font-size:0.7rem;">
+          {{ scanned_at | thdate }}  <!-- ✅ แก้จาก strftime เป็น thdate -->
         </p>
         {% endif %}
-
       </div>
     </div>
     {% endfor %}
   </div>
 
-  <!-- Progress Bar ✅ เพิ่มใหม่ -->
-  <div class="mb-4">
-    <div class="d-flex justify-content-between small text-muted mb-1">
-      <span>ความคืบหน้า</span>
-      <span>{{ doc.step_status.current }}/4 ขั้นตอน</span>
-    </div>
-    <div class="progress" style="height:10px; border-radius:10px;">
-      <div class="progress-bar bg-{{ doc.step_status.color }}"
-           style="width: {{ (doc.step_status.current / 4 * 100)|int }}%;
-                  border-radius:10px; transition: width 0.5s;">
-      </div>
-    </div>
-  </div>
-
-  <!-- Scan Form ✅ แก้เป็น next_step <= 4 -->
+  <!-- Scan Form -->
   {% if not doc.is_finished %}
     {% set next_step = doc.step_status.current + 1 %}
-    {% if next_step <= 4 %}
+    {% if next_step <= 3 %}
     <div class="card">
       <div class="card-header bg-primary text-white">
         <h6 class="mb-0">
           <i class="bi bi-qr-code-scan me-2"></i>
-          {% if next_step == 1 %}บันทึกขั้นที่ 1 - เภสัชกรส่ง
-          {% elif next_step == 2 %}บันทึกขั้นที่ 2 - งานประกัน
-          {% elif next_step == 3 %}บันทึกขั้นที่ 3 - งานธุรการ
-          {% elif next_step == 4 %}บันทึกขั้นที่ 4 - งานจัดซื้อยา
-          {% endif %}
+          บันทึกขั้นที่ {{ next_step }}
         </h6>
       </div>
       <div class="card-body">
         <form method="post">
           <input type="hidden" name="step" value="{{ next_step }}">
           <div class="mb-3">
-            <label class="form-label fw-bold">ชื่อผู้รับเอกสาร</label>
+            <label class="form-label fw-bold">ชื่อผู้รับ</label>
             <input type="text" name="scanner_name"
                    class="form-control form-control-lg"
                    placeholder="กรอกชื่อ..." required autofocus>
@@ -150,20 +113,16 @@
       </div>
     </div>
     {% else %}
-    <div class="alert alert-success text-center py-4">
-      <i class="bi bi-check-circle-fill text-success me-2" style="font-size:2rem;"></i>
-      <p class="fw-bold fs-5 mb-0 mt-2">ครบทุกขั้นตอนแล้ว!</p>
-      <p class="text-muted small mt-1">เอกสารผ่านครบ 4 ขั้นตอน</p>
+    <div class="alert alert-success text-center">
+      <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+      <strong>ครบทุกขั้นตอนแล้ว!</strong>
     </div>
     {% endif %}
   {% else %}
-  <div class="alert alert-secondary text-center py-4">
-    <i class="bi bi-lock-fill me-2" style="font-size:2rem;"></i>
-    <p class="fw-bold mb-0 mt-2">เอกสารนี้ปิดแล้ว</p>
-    <p class="text-muted small mt-1">ไม่สามารถสแกนเพิ่มได้</p>
+  <div class="alert alert-secondary text-center">
+    <i class="bi bi-lock-fill me-2"></i>เอกสารนี้ปิดแล้ว
   </div>
   {% endif %}
-
 </div>
 </body>
 </html>

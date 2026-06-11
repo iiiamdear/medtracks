@@ -22,6 +22,42 @@ def format_datetime_th(dt):
         dt = dt.replace(tzinfo=timezone.utc).astimezone(TH_TZ)
     return dt.strftime('%d/%m/%Y %H:%M น.')
 
+models.Base.metadata.create_all(bind=database.engine)
+
+# ===== LIFESPAN =====
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = database.SessionLocal()
+    try:
+        if not db.query(models.User).filter(models.User.username == "admin").first():
+            db.add(models.User(
+                username="admin",
+                password=hash_password("admin1234"),
+                role="admin"
+            ))
+            print("✅ Created default admin: admin / admin1234")
+
+        if not db.query(models.User).filter(models.User.username == "staff").first():
+            db.add(models.User(
+                username="staff",
+                password=hash_password("staff1234"),
+                role="user"
+            ))
+            print("✅ Created default staff: staff / staff1234")
+
+        db.commit()
+    finally:
+        db.close()
+    yield
+
+app = FastAPI(lifespan=lifespan)
+templates = Jinja2Templates(directory="templates")
+templates.env.filters["thdate"] = format_datetime_th   # ✅ เพิ่ม filter
+
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # ===== HELPERS =====
 
 def hash_password(p: str) -> str:
@@ -84,10 +120,8 @@ def get_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 def get_step_status(doc) -> dict:
-    if doc.step4_scanned_at:
-        return {"current": 4, "label": "งานจัดซื้อยารับแล้ว", "color": "success"}
-    elif doc.step3_scanned_at:
-        return {"current": 3, "label": "งานธุรการรับแล้ว",    "color": "warning"}
+    if doc.step3_scanned_at:
+        return {"current": 3, "label": "งานจัดซื้อรับแล้ว",  "color": "success"}
     elif doc.step2_scanned_at:
         return {"current": 2, "label": "งานประกันรับแล้ว",    "color": "primary"}
     elif doc.step1_scanned_at:
@@ -95,48 +129,7 @@ def get_step_status(doc) -> dict:
     else:
         return {"current": 0, "label": "รอดำเนินการ",         "color": "secondary"}
 
-# ===== LIFESPAN =====
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # สร้าง table ก่อน
-    models.Base.metadata.create_all(bind=database.engine)
-
-    # สร้าง default users
-    db = database.SessionLocal()
-    try:
-        if not db.query(models.User).filter(models.User.username == "admin").first():
-            db.add(models.User(
-                username="admin",
-                password=hash_password("admin1234"),
-                role="admin"
-            ))
-            print("✅ Created default admin: admin / admin1234")
-
-        if not db.query(models.User).filter(models.User.username == "staff").first():
-            db.add(models.User(
-                username="staff",
-                password=hash_password("staff1234"),
-                role="user"
-            ))
-            print("✅ Created default staff: staff / staff1234")
-
-        db.commit()
-    finally:
-        db.close()
-    yield
-
-# ===== APP =====
-
-app = FastAPI(lifespan=lifespan)
-
-templates = Jinja2Templates(directory="templates")
-templates.env.filters["thdate"] = format_datetime_th
-
-os.makedirs("static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# ===== AUTH =====
+# ===== AUTH & REGISTER =====
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request, success: Optional[str] = None):
@@ -264,7 +257,6 @@ def index(request: Request, db: Session = Depends(get_db)):
         "step1"        : sum(1 for d in active_docs if d.step_status["current"] == 1),
         "step2"        : sum(1 for d in active_docs if d.step_status["current"] == 2),
         "step3"        : sum(1 for d in active_docs if d.step_status["current"] == 3),
-        "step4"        : sum(1 for d in active_docs if d.step_status["current"] == 4),
         "total_meds"   : db.query(models.Medicine).count(),
         "total_users"  : db.query(models.User).count(),
     }
@@ -321,7 +313,7 @@ def create_post(
         note         = note,
         pharmacist_id= ph_id,
         user_id      = user.id,
-        created_at   = now_th()
+        created_at   = now_th()    # ✅ เวลาไทย
     )
     db.add(doc)
     db.flush()
@@ -367,7 +359,7 @@ def finish_document(doc_id: int, request: Request,
     if not doc:
         raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
     doc.is_finished = True
-    doc.finished_at = now_th()
+    doc.finished_at = now_th()    # ✅ เวลาไทย
     db.commit()
     return RedirectResponse(url="/", status_code=302)
 
@@ -463,17 +455,14 @@ def track_post(doc_id      : int,
     if doc.is_finished:
         error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
     elif step == 1 and not doc.step1_scanned_at:
-        doc.step1_scanned_at = now_th()
+        doc.step1_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step1_name       = scanner_name
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
-        doc.step2_scanned_at = now_th()
+        doc.step2_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step2_name       = scanner_name
     elif step == 3 and doc.step2_scanned_at and not doc.step3_scanned_at:
-        doc.step3_scanned_at = now_th()
+        doc.step3_scanned_at = now_th()    # ✅ เวลาไทย
         doc.step3_name       = scanner_name
-    elif step == 4 and doc.step3_scanned_at and not doc.step4_scanned_at:
-        doc.step4_scanned_at = now_th()
-        doc.step4_name       = scanner_name
     else:
         error = "ไม่สามารถบันทึกได้ กรุณาตรวจสอบขั้นตอน"
 
