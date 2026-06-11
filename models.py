@@ -41,7 +41,7 @@ class Medicine(Base):
     unit       = Column(String, nullable=False, default="เม็ด")
     price      = Column(Float,  default=0.0, nullable=False)
 
-    created_at = Column(DateTime(timezone=True), default=now_th)  # ✅
+    created_at = Column(DateTime(timezone=True), default=now_th)
 
     items = relationship("DocumentItem", back_populates="medicine")
 
@@ -60,18 +60,25 @@ class Document(Base):
     pharmacist_id = Column(Integer, ForeignKey("pharmacists.id"), nullable=True)
     user_id       = Column(Integer, ForeignKey("users.id"),       nullable=True)
 
-    created_at  = Column(DateTime(timezone=True), default=now_th, nullable=False)  # ✅
+    created_at  = Column(DateTime(timezone=True), default=now_th, nullable=False)
     is_finished = Column(Boolean,  default=False, nullable=False)
-    finished_at = Column(DateTime(timezone=True), nullable=True)                   # ✅
+    finished_at = Column(DateTime(timezone=True), nullable=True)
 
-    step1_scanned_at = Column(DateTime(timezone=True), nullable=True)              # ✅
+    # Step 1 - เภสัชกร
+    step1_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step1_name       = Column(String, nullable=True)
 
-    step2_scanned_at = Column(DateTime(timezone=True), nullable=True)              # ✅
+    # Step 2 - งานประกัน
+    step2_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step2_name       = Column(String, nullable=True)
 
-    step3_scanned_at = Column(DateTime(timezone=True), nullable=True)              # ✅
+    # Step 3 - งานธุรการ ✅
+    step3_scanned_at = Column(DateTime(timezone=True), nullable=True)
     step3_name       = Column(String, nullable=True)
+
+    # Step 4 - งานจัดซื้อยา ✅ (ใหม่)
+    step4_scanned_at = Column(DateTime(timezone=True), nullable=True)
+    step4_name       = Column(String, nullable=True)
 
     pharmacist = relationship("Pharmacist", back_populates="documents")
     user       = relationship("User",       back_populates="documents")

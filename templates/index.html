@@ -9,29 +9,57 @@
   <div class="col-6 col-lg-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#2980b9,#3498db);">
       <i class="bi bi-file-earmark-text"></i>
-      <div class="stat-num">{{ stats.total }}</div>
+      <div class="stat-num">{{ stats.total_active }}</div>
       <div class="small">เอกสารทั้งหมด</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#e67e22,#f39c12);">
       <i class="bi bi-hourglass-split"></i>
-      <div class="stat-num">{{ stats.pending }}</div>
+      <div class="stat-num">{{ stats.step0 }}</div>
       <div class="small">รอดำเนินการ</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="stat-card" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);">
-      <i class="bi bi-arrow-repeat"></i>
-      <div class="stat-num">{{ stats.in_progress }}</div>
-      <div class="small">กำลังดำเนินการ</div>
+    <div class="stat-card" style="background:linear-gradient(135deg,#0984e3,#74b9ff);">
+      <i class="bi bi-person-check"></i>
+      <div class="stat-num">{{ stats.step1 }}</div>
+      <div class="small">เภสัชกรจัดส่งแล้ว</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);">
+      <i class="bi bi-shield-check"></i>
+      <div class="stat-num">{{ stats.step2 }}</div>
+      <div class="small">งานประกันรับแล้ว</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#e17055,#fab1a0);">
+      <i class="bi bi-building"></i>
+      <div class="stat-num">{{ stats.step3 }}</div>
+      <div class="small">งานธุรการรับแล้ว</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="stat-card" style="background:linear-gradient(135deg,#27ae60,#2ecc71);">
-      <i class="bi bi-check-circle"></i>
-      <div class="stat-num">{{ stats.done }}</div>
-      <div class="small">เสร็จสิ้น</div>
+      <i class="bi bi-cart-check"></i>
+      <div class="stat-num">{{ stats.step4 }}</div>
+      <div class="small">งานจัดซื้อยารับแล้ว</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#00b894,#55efc4);">
+      <i class="bi bi-capsule"></i>
+      <div class="stat-num">{{ stats.total_meds }}</div>
+      <div class="small">รายการยาทั้งหมด</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card" style="background:linear-gradient(135deg,#636e72,#b2bec3);">
+      <i class="bi bi-people"></i>
+      <div class="stat-num">{{ stats.total_users }}</div>
+      <div class="small">ผู้ใช้งานทั้งหมด</div>
     </div>
   </div>
 </div>
@@ -89,7 +117,7 @@
               {{ "%.2f"|format(doc.total_price) }} บาท
             </td>
             <td class="small text-muted">
-              {{ doc.created_at.strftime('%d/%m/%Y %H:%M') }}
+              {{ doc.created_at | thdate }}
             </td>
             <td class="text-center">
               <a href="/document/{{ doc.id }}"
