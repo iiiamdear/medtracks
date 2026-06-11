@@ -22,42 +22,6 @@ def format_datetime_th(dt):
         dt = dt.replace(tzinfo=timezone.utc).astimezone(TH_TZ)
     return dt.strftime('%d/%m/%Y %H:%M น.')
 
-models.Base.metadata.create_all(bind=database.engine)
-
-# ===== LIFESPAN =====
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db = database.SessionLocal()
-    try:
-        if not db.query(models.User).filter(models.User.username == "admin").first():
-            db.add(models.User(
-                username="admin",
-                password=hash_password("admin1234"),
-                role="admin"
-            ))
-            print("✅ Created default admin: admin / admin1234")
-
-        if not db.query(models.User).filter(models.User.username == "staff").first():
-            db.add(models.User(
-                username="staff",
-                password=hash_password("staff1234"),
-                role="user"
-            ))
-            print("✅ Created default staff: staff / staff1234")
-
-        db.commit()
-    finally:
-        db.close()
-    yield
-
-app = FastAPI(lifespan=lifespan)
-templates = Jinja2Templates(directory="templates")
-templates.env.filters["thdate"] = format_datetime_th
-
-os.makedirs("static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # ===== HELPERS =====
 
 def hash_password(p: str) -> str:
@@ -119,7 +83,6 @@ def make_qr_b64(url: str) -> str:
 def get_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
-# ✅ แก้ get_step_status เป็น 4 ขั้นตอน
 def get_step_status(doc) -> dict:
     if doc.step4_scanned_at:
         return {"current": 4, "label": "งานจัดซื้อยารับแล้ว", "color": "success"}
@@ -132,7 +95,48 @@ def get_step_status(doc) -> dict:
     else:
         return {"current": 0, "label": "รอดำเนินการ",         "color": "secondary"}
 
-# ===== AUTH & REGISTER =====
+# ===== LIFESPAN =====
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # สร้าง table ก่อน
+    models.Base.metadata.create_all(bind=database.engine)
+
+    # สร้าง default users
+    db = database.SessionLocal()
+    try:
+        if not db.query(models.User).filter(models.User.username == "admin").first():
+            db.add(models.User(
+                username="admin",
+                password=hash_password("admin1234"),
+                role="admin"
+            ))
+            print("✅ Created default admin: admin / admin1234")
+
+        if not db.query(models.User).filter(models.User.username == "staff").first():
+            db.add(models.User(
+                username="staff",
+                password=hash_password("staff1234"),
+                role="user"
+            ))
+            print("✅ Created default staff: staff / staff1234")
+
+        db.commit()
+    finally:
+        db.close()
+    yield
+
+# ===== APP =====
+
+app = FastAPI(lifespan=lifespan)
+
+templates = Jinja2Templates(directory="templates")
+templates.env.filters["thdate"] = format_datetime_th
+
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ===== AUTH =====
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request, success: Optional[str] = None):
@@ -254,7 +258,6 @@ def index(request: Request, db: Session = Depends(get_db)):
     for doc in active_docs:
         doc.step_status = get_step_status(doc)
 
-    # ✅ เพิ่ม step4 ใน stats
     stats = {
         "total_active" : len(active_docs),
         "step0"        : sum(1 for d in active_docs if d.step_status["current"] == 0),
@@ -444,7 +447,6 @@ def track_get(doc_id: int, request: Request,
         request=request, name="track.html",
         context={"doc": doc, "success": False, "error": None})
 
-# ✅ แก้ track_post เพิ่ม step4
 @app.post("/track/{doc_id}")
 def track_post(doc_id      : int,
                request     : Request,
@@ -466,10 +468,10 @@ def track_post(doc_id      : int,
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
         doc.step2_scanned_at = now_th()
         doc.step2_name       = scanner_name
-    elif step == 3 and doc.step2_scanned_at and not doc.step3_scanned_at:  # ✅ งานธุรการ
+    elif step == 3 and doc.step2_scanned_at and not doc.step3_scanned_at:
         doc.step3_scanned_at = now_th()
         doc.step3_name       = scanner_name
-    elif step == 4 and doc.step3_scanned_at and not doc.step4_scanned_at:  # ✅ งานจัดซื้อยา
+    elif step == 4 and doc.step3_scanned_at and not doc.step4_scanned_at:
         doc.step4_scanned_at = now_th()
         doc.step4_name       = scanner_name
     else:
