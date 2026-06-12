@@ -7,7 +7,6 @@ import io
 import os
 
 import qrcode
-# 🛠️ เพิ่ม WebSocket และ WebSocketDisconnect เข้ามาจัดการเรียลไทม์
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -93,7 +92,7 @@ def get_step_status(doc) -> dict:
         return {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
 
 
-# 🛠️ ===== WEBSOCKET REAL-TIME CONNECTION MANAGER =====
+# 🛠️ ===== WEBSOCKET CONNECTION MANAGER FOR RENDER =====
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -107,11 +106,15 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
+        # กรองล้างท่อเสียทิ้งระว่างส่งสัญญาณ ป้องกันค้างบน Render
+        failed_connections = []
         for connection in self.active_connections:
             try:
                 await connection.send_text(message)
             except Exception:
-                pass
+                failed_connections.append(connection)
+        for bad_conn in failed_connections:
+            self.disconnect(bad_conn)
 
 manager = ConnectionManager()
 # =======================================================
@@ -162,16 +165,19 @@ os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# 🛠️ ===== WEBSOCKET ENDPOINT =====
+# 🛠️ ===== WEBSOCKET ENDPOINT WITH HEARTBEAT =====
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            # ถ้าหน้าบ้านส่งชีพจร "ping" มา ให้คอยตอบกลับ "pong" เพื่อรักษาสายบน Render
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-# ==================================
+# ==================================================
 
 
 # ===== AUTH =====
@@ -400,7 +406,7 @@ async def create_post(
 # ===== FINISH =====
 
 @app.post("/finish/{doc_id}")
-def finish_document(doc_id: int, request: Request, db: Session = Depends(database.get_db)):
+async def finish_document(doc_id: int, request: Request, db: Session = Depends(database.get_db)):
     user, response = check_auth(request, db, allowed_roles=["admin", "user"])
     if response:
         return response
@@ -412,6 +418,9 @@ def finish_document(doc_id: int, request: Request, db: Session = Depends(databas
     doc.is_finished = True
     doc.finished_at = datetime.now()
     db.commit()
+    
+    # แจ้งเตือนบอร์ดแคสเมื่อมีการกดเสร็จสิ้นงานด้วย
+    await manager.broadcast("refresh_page")
     return RedirectResponse(url="/", status_code=302)
 
 
@@ -484,6 +493,11 @@ def view_document(doc_id: int, request: Request, db: Session = Depends(database.
     doc.items = items
     doc.step_status = get_step_status(doc)
     base_url = get_base_url(request)
+    
+    # 🛠️ ตรวจจับหากรันอยู่บน Render ให้บังคับแปลงเป็นลิงก์ https เสมอ ป้องกันสแกนติดผสมโปรโตคอลผิดพลาด
+    if "onrender.com" in base_url and base_url.startswith("http://"):
+        base_url = base_url.replace("http://", "https://")
+        
     track_url = f"{base_url}/track/{doc_id}"
     qr_b64 = make_qr_b64(track_url)
 
@@ -510,7 +524,6 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     )
 
 
-# 🛠️ ปรับเป็น async def และเพิ่มการยิงสัญญาณ broadcast บอกทุกหน้าจอให้รีเฟรช
 @app.post("/track/{doc_id}")
 async def track_post(
     doc_id: int,
@@ -546,7 +559,7 @@ async def track_post(
     if not error:
         db.commit()
         db.refresh(doc)
-        # 🛠️ ส่งสัญญาณบอกเว็บบนคอมพิวเตอร์ว่า "ข้อมูลเปลี่ยนแล้ว รีเฟรชด่วน!"
+        # 🚀 ยิงกระแทกสัญญาณแบบรวดเร็วส่งไปหาทุกจอคอมพิวเตอร์ที่ต่อท่ออยู่
         await manager.broadcast("refresh_page")
 
     doc.step_status = get_step_status(doc)

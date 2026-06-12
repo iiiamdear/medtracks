@@ -55,6 +55,14 @@
       border-radius: 0.5rem;
       padding: 0.25rem 0.5rem;
     }
+    /* สไตล์เพิ่มสำหรับลูกเล่นการรอโหลดสเต็ปปัจจุบัน */
+    .animate-pulse-custom {
+      animation: pulseCustom 2s infinite;
+    }
+    @keyframes pulseCustom {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.08); }
+    }
   </style>
 </head>
 <body>
@@ -91,7 +99,7 @@
   </div>
 
   <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-    <div class="card-header bg-white border-bottom border-light py-3 px-4 flex items-center">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex align-items-center">
       <span class="fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>รายการยาและวิธีใช้</span>
     </div>
     <div class="table-responsive">
@@ -204,7 +212,7 @@
           {% if scanned_at %}
           <i class="bi bi-check-circle-fill text-success fs-4"></i>
           {% elif current_step == num - 1 %}
-          <i class="bi bi-arrow-right-circle-fill text-primary fs-4 animate-pulse"></i>
+          <i class="bi bi-arrow-right-circle-fill text-primary fs-4 d-inline-block animate-pulse-custom"></i>
           {% else %}
           <i class="bi bi-dash-circle text-muted fs-4"></i>
           {% endif %}
@@ -232,7 +240,7 @@
     {% if next_step <= 4 %}
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
       <div class="card-header bg-primary text-white py-3 px-4 border-0">
-        <h6 class="mb-0 fw-bold flex items-center">
+        <h6 class="mb-0 fw-bold d-flex align-items-center">
           <i class="bi bi-qr-code-scan me-2"></i>
           บันทึกขั้นตอนที่ {{ next_step }}
         </h6>
@@ -243,7 +251,7 @@
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary mb-2">ชื่อผู้รับ / ผู้บันทึกเอกสาร</label>
             <input type="text" name="scanner_name"
-                   class="form-control form-control-lg border-2 bg-light border-0 rounded-3 text-dark fs-6 py-2.5 px-3 focus:bg-white"
+                   class="form-control form-control-lg border-2 bg-light border-0 rounded-3 text-dark fs-6 py-2.5 px-3"
                    placeholder="กรุณากรอกชื่อ-นามสกุลของคุณ" required autofocus>
           </div>
           <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold shadow-sm py-2.5 fs-6">
@@ -272,6 +280,58 @@
   {% endif %}
 
 </div>
+
+<!-- 🛠️ ===== WEBSOCKET SYSTEM WITH HEARTBEAT FOR RENDER ===== -->
+<script>
+let socket;
+let reconnectTimeout;
+let pingInterval;
+
+function connectTrackingWS() {
+    // ปรับเปลี่ยนโปรโตคอลตามโปรโตคอลของเว็บไซต์หลัก (http -> ws, https -> wss)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    console.log("⚡ Connecting Track WebSocket:", wsUrl);
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = function() {
+        console.log("✅ ท่อส่งข้อมูลเรียลไทม์ฝั่งผู้ติดตามเปิดใช้งานเรียบร้อย!");
+        
+        // 🔥 ป้องกันท่อหลุด: ส่งสัญญาณชีพจรหลอก (Heartbeat ping) ไปที่ Server ทุกๆ 15 วินาที
+        clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send("ping");
+            }
+        }, 15000);
+    };
+
+    socket.onmessage = function(event) {
+        // หากได้รับคำสั่งให้ทำการอัปเดตหน้าจอ
+        if (event.data === "refresh_page") {
+            console.log("📡 สถานะเปลี่ยนไป! กำลังรีเฟรชข้อมูลล่าสุดบนมือถือของคุณ...");
+            window.location.reload();
+        }
+    };
+
+    socket.onclose = function() {
+        console.log("🔌 สัญญาณหลุดชั่วคราว กำลังพยายามเชื่อมต่อใหม่อัตโนมัติใน 2 วินาที...");
+        clearInterval(pingInterval);
+        clearTimeout(reconnectTimeout);
+        // ระบบรีคอนเนคอัตโนมัติ
+        reconnectTimeout = setTimeout(connectTrackingWS, 2000);
+    };
+
+    socket.onerror = function(err) {
+        console.error("❌ WebSocket Error:", err);
+        socket.close();
+    };
+}
+
+// เริ่มเปิดการทำงานระบบตรวจจับข้อมูลทันที
+connectTrackingWS();
+</script>
 
 </body>
 </html>

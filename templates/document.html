@@ -148,7 +148,7 @@
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
                 <p class="text-2xl mb-1">📲</p>
                 <h3 class="font-bold text-slate-800 mb-1">QR Code บันทึกสถานะ</h3>
-                <p class="text-xs text-slate-400 mb-4">เจ้าหน้าที่สแกน QR นี้เพื่ออัปเดตสถานะงาน</p>
+                <p class="text-xs text-slate-400 mb-4">เจ้าหน้าที่สแกan QR นี้เพื่ออัปเดตสถานะงาน</p>
 
                 <div class="inline-block p-3 bg-white border-2 border-dashed border-slate-200 rounded-xl shadow-sm">
                     <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code" class="w-44 h-44 object-contain">
@@ -277,22 +277,55 @@ function printDoc() {
     printArea.classList.add('hidden');
 }
 
-// 📡 ➕ เพิ่มระบบรับสัญญาณอัปเดตแบบ Real-time บนหน้านี้
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsUrl = `${protocol}//${window.location.host}/ws`;
-const socket = new WebSocket(wsUrl);
+// 🛠️ ===== WEBSOCKET REAL-TIME WITH HEARTBEAT FOR RENDER =====
+let socket;
+let reconnectTimeout;
+let pingInterval;
 
-socket.onmessage = function(event) {
-    if (event.data === "refresh_page") {
-        console.log("📡 ได้รับสัญญาณการอัปเดตสถานะ! กำลังรีโหลดข้อมูลใหม่...");
-        window.location.reload(); 
-    }
-};
+function connectWS() {
+    // เลือกใช้ wss:// โดยอัตโนมัติหากรันอยู่บนระบบรักษาความปลอดภัย HTTPS ของ Render
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    console.log("⚡ กำลังเชื่อมต่อเข้าสู่ระบบ Real-time:", wsUrl);
+    socket = new WebSocket(wsUrl);
 
-socket.onclose = function() {
-    console.log("WebSocket หลุดการเชื่อมต่อระบบ Real-time กำลังเชื่อมใหม่ใน 5 วินาที...");
-    setTimeout(() => { window.location.reload(); }, 5000);
-};
+    socket.onopen = function() {
+        console.log("✅ ท่อส่งข้อมูลเรียลไทม์พร้อมทำงานแล้ว!");
+        
+        // 🔥 ป้องกันสายหลุด: ยิงชีพจรเทียม (Heartbeat) ทักทาย Server ทุกๆ 15 วินาที เพื่อไม่ให้ Proxy ของ Render ตัดสาย
+        clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send("ping");
+            }
+        }, 15000);
+    };
+
+    socket.onmessage = function(event) {
+        // หากได้รับสัญญาณสั่งรีเฟรชหน้าจอจากหลังบ้าน
+        if (event.data === "refresh_page") {
+            console.log("📡 ได้รับคำสั่งอัปเดตสถานะ! กำลังปรับปรุงหน้าจอคอมพิวเตอร์...");
+            window.location.reload(); 
+        }
+    };
+
+    socket.onclose = function() {
+        console.log("🔌 ระบบเชื่อมต่อหลุดชั่วคราว กำลังกู้คืนท่อส่งสัญญาณใหม่ใน 2 วินาที...");
+        clearInterval(pingInterval);
+        clearTimeout(reconnectTimeout);
+        // สั่งต่อสายใหม่อัตโนมัติ (Auto-Reconnect)
+        reconnectTimeout = setTimeout(connectWS, 2000);
+    };
+
+    socket.onerror = function(err) {
+        console.error("❌ WebSocket เกิดข้อผิดพลาด:", err);
+        socket.close();
+    };
+}
+
+// เรียกเปิดระบบทำงานทันที
+connectWS();
 </script>
 
 {% endblock %}
