@@ -1,7 +1,9 @@
 fastapi
 uvicorn
-sqlalchemy
 jinja2
+sqlalchemy
+pytz
 qrcode
 pillow
-python-multipart
+websockets
+python-multipart 
