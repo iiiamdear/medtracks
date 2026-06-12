@@ -1,36 +1,179 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<h1 class="text-2xl font-bold mb-6 text-gray-800">📂 ประวัติการติดตามยาที่สำเร็จแล้ว (Admin เท่านั้น)</h1>
-<div class="bg-white rounded-lg shadow overflow-x-auto">
-    <table class="w-full text-left border-collapse">
-        <thead>
-            <tr class="bg-gray-100 text-gray-700 border-b">
-                <th class="p-4">ID</th>
-                <th class="p-4">ชื่อยา</th>
-                <th class="p-4">ผู้บันทึก</th>
-                <th class="p-4">ราคา</th>
-                <th class="p-4">วันที่เสร็จสิ้น</th>
-                <th class="p-4">การจัดการ</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for doc in docs %}
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-4">#{{ doc.id }}</td>
-                <td class="p-4 font-bold">{{ doc.drug_name }}</td>
-                <td class="p-4">{{ doc.pharmacist_name }}</td>
-                <td class="p-4">{{ "{:,.2f}".format(doc.price) }} บาท</td>
-                <td class="p-4 text-sm text-gray-500">{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td class="p-4">
-                    <a href="{{ url_for('view_doc', doc_id=doc.id) }}" class="text-blue-500 hover:underline">เรียกดูเอกสาร</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="p-4 text-center text-gray-500">ไม่มีประวัติงานที่เสร็จสิ้น</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<!-- Header -->
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+        <h1 class="text-xl font-bold text-slate-800">ประวัติการติดตามยาที่สำเร็จแล้ว</h1>
+        <p class="text-[11px] text-slate-400 mt-0.5">เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น</p>
+    </div>
+    <span class="self-start sm:self-auto text-[11px] font-semibold bg-emerald-500 text-white px-3 py-1.5 rounded-lg">
+        Archive / Finished
+    </span>
 </div>
+
+<!-- Table -->
+<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+    <!-- Table Header + Search -->
+    <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+        <div class="flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
+            <span class="text-sm font-bold text-slate-700">รายการเอกสารที่เสร็จสิ้น</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Search Box -->
+            <div class="relative">
+                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 text-sm pointer-events-none">
+                    🔍
+                </span>
+                <input
+                    id="searchInput"
+                    type="text"
+                    placeholder="ค้นหา HN, ชื่อผู้ป่วย, ยา..."
+                    class="pl-8 pr-4 py-1.5 text-[12px] bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all w-56"
+                />
+            </div>
+
+            <!-- Count Badge -->
+            <span id="countBadge" class="text-[11px] font-semibold bg-slate-100 text-slate-500 px-3 py-1 rounded-lg whitespace-nowrap">
+                {{ docs | length }} รายการ
+            </span>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse whitespace-nowrap align-middle">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+                    <th class="py-3 px-5 w-16 text-center">#</th>
+                    <th class="py-3 px-4 w-28">HN</th>
+                    <th class="py-3 px-4">ผู้ป่วย</th>
+                    <th class="py-3 px-4">ชื่อยา</th>
+                    <th class="py-3 px-4">ผู้บันทึก</th>
+                    <th class="py-3 px-4 text-right">ราคา</th>
+                    <th class="py-3 px-4">วันที่เสร็จสิ้น</th>
+                    <th class="py-3 px-5 text-center w-36">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-slate-50 text-xs text-slate-600">
+                {% for doc in docs %}
+                <tr class="hover:bg-slate-50/70 transition-colors searchable-row">
+
+                    <!-- ID -->
+                    <td class="py-3.5 px-5 text-center">
+                        <span class="text-slate-300 font-bold text-xs">{{ doc.id }}</span>
+                    </td>
+
+                    <!-- HN -->
+                    <td class="py-3.5 px-4">
+                        <span class="font-mono text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                            {{ doc.hn }}
+                        </span>
+                    </td>
+
+                    <!-- ชื่อผู้ป่วย -->
+                    <td class="py-3.5 px-4">
+                        <div class="font-semibold text-slate-800 text-[13px]">{{ doc.patient_name }}</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">{{ doc.created_at.strftime('%Y-%m-%d') }}</div>
+                    </td>
+
+                    <!-- ชื่อยา -->
+                    <td class="py-3.5 px-4">
+                        <span class="font-semibold text-slate-700 text-[12px]">{{ doc.drug_name }}</span>
+                    </td>
+
+                    <!-- ผู้บันทึก -->
+                    <td class="py-3.5 px-4 text-slate-600 font-medium text-[12px]">
+                        {{ doc.pharmacist_name }}
+                    </td>
+
+                    <!-- ราคา -->
+                    <td class="py-3.5 px-4 text-right">
+                        <span class="font-bold text-slate-700 text-[13px]">{{ "{:,.2f}".format(doc.price) }}</span>
+                        <span class="text-[10px] text-slate-400"> ฿</span>
+                    </td>
+
+                    <!-- วันที่ -->
+                    <td class="py-3.5 px-4">
+                        <span class="text-[11px] text-slate-400 font-medium">
+                            {{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </span>
+                    </td>
+
+                    <!-- จัดการ -->
+                    <td class="py-3.5 px-5 text-center">
+                        <a href="{{ url_for('view_doc', doc_id=doc.id) }}"
+                           class="inline-block text-[11px] font-semibold bg-slate-100 hover:bg-blue-500 text-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors">
+                            🔎 เรียกดู
+                        </a>
+                    </td>
+
+                </tr>
+                {% else %}
+                <tr id="emptyRow">
+                    <td colspan="8" class="text-center py-16 text-slate-400">
+                        <div class="text-4xl mb-3">📁</div>
+                        <div class="text-sm font-semibold text-slate-500 mb-1">ไม่มีเอกสารที่เสร็จสิ้น</div>
+                        <div class="text-xs text-slate-400">เอกสารที่ดำเนินการครบจะปรากฏที่นี่</div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- No Result (ตอน search แล้วไม่เจอ) -->
+        <div id="noResult" class="hidden text-center py-16 text-slate-400">
+            <div class="text-4xl mb-3">🔍</div>
+            <div class="text-sm font-semibold text-slate-500 mb-1">ไม่พบรายการที่ค้นหา</div>
+            <div class="text-xs text-slate-400">ลองค้นหาด้วย HN, ชื่อผู้ป่วย หรือชื่อยา</div>
+        </div>
+    </div>
+
+    {% if docs %}
+    <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <span class="text-[11px] text-slate-400">
+            แสดง <span id="showCount" class="font-semibold text-slate-500">{{ docs | length }}</span>
+            จาก <span class="font-semibold text-slate-500">{{ docs | length }}</span> รายการ
+        </span>
+        <span class="text-[11px] text-slate-400">MedTrack</span>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Search Script -->
+<script>
+    const searchInput = document.getElementById('searchInput');
+    const rows = document.querySelectorAll('.searchable-row');
+    const noResult = document.getElementById('noResult');
+    const showCount = document.getElementById('showCount');
+    const countBadge = document.getElementById('countBadge');
+    const total = rows.length;
+
+    searchInput.addEventListener('input', function () {
+        const keyword = this.value.toLowerCase().trim();
+        let visible = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(keyword)) {
+                row.classList.remove('hidden');
+                visible++;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        // No result state
+        noResult.classList.toggle('hidden', visible > 0);
+
+        // Update count
+        if (showCount) showCount.textContent = visible;
+        countBadge.textContent = visible + ' รายการ';
+    });
+</script>
+
 {% endblock %}

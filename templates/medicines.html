@@ -1,92 +1,354 @@
 {% extends "base.html" %}
-{% block title %}จัดการยา - MedTrack{% endblock %}
-{% block page_title %}<i class="bi bi-capsule me-2"></i>จัดการยา{% endblock %}
+{% block title %}จัดการคลังยา - MedTrack{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <!-- Add Form -->
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-bold">
-          <i class="bi bi-plus-circle me-2 text-success"></i>เพิ่มยาใหม่
-        </h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="/medicines/add">
-          <div class="mb-3">
-            <label class="form-label fw-bold">ชื่อยา <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold">หน่วย <span class="text-danger">*</span></label>
-            <input type="text" name="unit" class="form-control"
-                   required placeholder="เช่น เม็ด, ขวด, แผง">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold">ราคา (บาท) <span class="text-danger">*</span></label>
-            <input type="number" name="price" class="form-control"
-                   required min="0" step="0.01" value="0">
-          </div>
-          
-          <button type="submit" class="btn btn-success w-100">
-            <i class="bi bi-plus-lg me-1"></i>เพิ่มยา
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<style>
+    /* สไตล์ล็อก Layout แบบเบ็ดเสร็จ ป้องกัน CSS ภายนอกทำพัง */
+    .med-manager-wrapper {
+        padding: 24px;
+        max-width: 1440px;
+        margin: 0 auto;
+        font-family: system-ui, -apple-system, sans-serif;
+        background-color: #f8fafc;
+        min-height: 100vh;
+    }
 
-  <!-- List -->
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-bold">
-          <i class="bi bi-list-ul me-2"></i>รายการยาทั้งหมด
-          <span class="badge bg-success ms-1">{{ medicines|length }}</span>
-        </h6>
-      </div>
-      <div class="card-body p-0">
-        {% if medicines %}
-        <table class="table table-hover mb-0">
-          <thead>
-            <tr>
-              <th class="ps-3" width="10%">#</th>
-              <th width="50%">ชื่อยา</th>
-              <th class="text-center" width="15%">หน่วย</th>
-              <th class="text-end" width="15%">ราคา</th>
-              <th class="text-center" width="10%">ลบ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for m in medicines %}
-            <tr>
-              <td class="ps-3 text-muted small">{{ m.id }}</td>
-              <td class="fw-bold text-dark">{{ m.name }}</td>
-              <td class="text-center">{{ m.unit }}</td>
-              <td class="text-end text-success fw-bold">
-                {{ "%.2f"|format(m.price) }}
-              </td>
-              <td class="text-center">
-                <form method="post" action="/medicines/delete/{{ m.id }}"
-                      onsubmit="return confirm('ลบยา {{ m.name }}?')">
-                  <button class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="text-center py-5 text-muted">
-          <i class="bi bi-capsule" style="font-size:3rem;"></i>
-          <p class="mt-2">ยังไม่มีรายการยา</p>
-        </div>
-        {% endif %}
-      </div>
+    /* แถบหัวข้อดีไซน์โมเดิร์น คุมโทนสีน้ำเงินพรีเมียม */
+    .med-main-banner {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 24px 32px;
+        margin-bottom: 32px;
+        box-shadow: 0 10px 15px -3px rgba(30, 64, 175, 0.1);
+    }
+
+    .med-main-banner h2 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .med-main-banner p {
+        margin: 6px 0 0 0;
+        font-size: 0.9rem;
+        opacity: 0.85;
+    }
+
+    /* โครงสร้าง Grid บังคับสัดส่วนหน้าจอ */
+    .med-grid-layout {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 32px;
+        align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+        .med-grid-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* กล่อง Card ขาวคลีน */
+    .med-premium-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .card-inside-padding {
+        padding: 24px;
+    }
+
+    .card-header-flex {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+    }
+
+    .card-header-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* ปรับปรุง Form Control ให้สมมาตรและตึงเต็มพื้นที่ */
+    .form-block {
+        margin-bottom: 20px;
+    }
+
+    .form-block-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 6px;
+    }
+
+    .input-premium-style {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        color: #1e293b;
+        transition: all 0.2s ease;
+    }
+
+    .input-premium-style:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        outline: none;
+    }
+
+    .row-flex-gap {
+        display: flex;
+        gap: 16px;
+    }
+
+    .row-flex-gap .col-half {
+        flex: 1;
+    }
+
+    /* ตารางคลังยาแบบเนี๊ยบกริบ */
+    .table-container-fixed {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .table-med-fixed {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .table-med-fixed th {
+        background-color: #f8fafc;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 14px 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .table-med-fixed td {
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 0.95rem;
+        vertical-align: middle;
+    }
+
+    .table-med-fixed tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .unit-pill {
+        background-color: #f1f5f9;
+        color: #475569;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+
+    .price-bold-text {
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    /* ปุ่มกดบันทึกอันใหญ่ */
+    .btn-submit-full {
+        width: 100%;
+        background-color: #2563eb;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .btn-submit-full:hover {
+        background-color: #1d4ed8;
+    }
+
+    /* ปุ่มลบแบบไอคอนถังขยะอย่างเดียว */
+    .btn-delete-premium {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        background-color: #fef2f2;
+        border: 1px solid #fca5a5;
+        color: #dc2626;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 0;
+    }
+
+    .btn-delete-premium:hover {
+        background-color: #dc2626;
+        border-color: #dc2626;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+        transform: translateY(-1px);
+    }
+
+    .btn-delete-premium svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+    }
+</style>
+
+<div class="med-manager-wrapper">
+    
+    <div class="med-main-banner">
+        <h2>
+            <svg style="width: 28px; height: 28px; fill: currentColor;" viewBox="0 0 24 24">
+                <path d="M6 3h12a6 6 0 0 1 6 6v6a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V9a6 6 0 0 1 6-6zm0 2a4 4 0 0 0-4 4v3h20V9a4 4 0 0 0-4-4H6zm12 14a4 4 0 0 0 4-4v-3H2v3a4 4 0 0 0 4 4h12z"/>
+            </svg>
+            เพิ่มยา
+        </h2>
+        <p>บันทึกข้อมูลยา หน่วยนับ และคำนวณราคา MedTrack</p>
     </div>
-  </div>
+
+    {% if request.query_params.get('error') == 'in_use' %}
+    <div class="alert alert-danger border-0 shadow-sm p-4 mb-4 d-flex align-items-center" role="alert" style="background-color: #fef2f2; color: #991b1b; border-radius: 12px; border-left: 5px solid #dc2626;">
+        <div style="margin-right: 16px;">
+            <svg style="width: 24px; height: 24px; fill: #dc2626;" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+        </div>
+        <div class="small fw-semibold">ไม่สามารถลบยารายการนี้ได้ เนื่องจากวัตถุประสงค์ถูกใช้งานในระบบใบจัดส่งยาแล้ว</div>
+        <button type="button" class="btn-close ms-auto shadow-none" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="med-grid-layout">
+        
+        <!-- ฝั่งซ้าย: ฟอร์มเพิ่มยา -->
+        <div class="med-premium-card card-inside-padding">
+            <h5 class="card-header-title mb-4 pb-2" style="border-bottom: 1px solid #f1f5f9; width: 100%;">
+                <span style="color: #2563eb; font-size: 1.2rem; margin-right: 6px;">✚</span> เพิ่มยาใหม่เข้าคลัง
+            </h5>
+            
+            <form action="/medicines/add" method="post" style="margin: 0;">
+                <input type="hidden" name="code" value="">
+                
+                <div class="form-block">
+                    <label class="form-block-label">ชื่อยาสามัญ / ขนาดความแรง *</label>
+                    <input type="text" name="name" class="input-premium-style" placeholder="เช่น Ribociclib 200 mg" required autocomplete="off">
+                </div>
+                
+                <div class="row-flex-gap mb-4">
+                    <div class="col-half">
+                        <label class="form-block-label">หน่วยนับ *</label>
+                        <input type="text" name="unit" class="input-premium-style" placeholder="เช่น เม็ด, ขวด" required autocomplete="off">
+                    </div>
+                    <div class="col-half">
+                        <label class="form-block-label">ราคา (บาท) *</label>
+                        <input type="number" name="price" step="0.01" min="0" class="input-premium-style text-end" value="0.00" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-submit-full shadow-sm">
+                    บันทึกข้อมูลเข้าคลัง
+                </button>
+            </form>
+        </div>
+
+        <!-- ฝั่งขวา: รายการยาในระบบ -->
+        <div class="med-premium-card">
+            <div class="card-header-flex">
+                <h5 class="card-header-title">
+                    <svg style="width: 18px; height: 18px; fill: #2563eb; margin-right: 6px;" viewBox="0 0 24 24">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/>
+                    </svg>
+                    รายการยาในระบบปัจจุบัน
+                </h5>
+                <span class="badge rounded-pill fw-semibold" style="background-color: #eff6ff; color: #1e40af; padding: 6px 12px; font-size: 0.85rem;">
+                    {{ medicines|length }} รายการ
+                </span>
+            </div>
+            
+            <div class="table-container-fixed">
+                <table class="table-med-fixed">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">ID ยา</th>
+                            <th>ชื่อยาสามัญ / ขนาดความแรง</th>
+                            <th style="width: 140px;">หน่วยนับ</th>
+                            <th style="width: 180px;" class="text-end">ราคา</th>
+                            <th style="width: 100px;" class="text-center">การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if medicines %}
+                            {% for med in medicines %}
+                            <tr>
+                                <td class="text-muted font-monospace">#{{ med.id }}</td>
+                                <td>
+                                    <!-- นำไอคอนออกเรียบร้อยแล้ว แสดงเพียงชื่อยาคลีนๆ -->
+                                    <span class="fw-bold text-dark d-block">{{ med.name }}</span>
+                                </td>
+                                <td><span class="unit-pill">{{ med.unit }}</span></td>
+                                <td class="text-end price-bold-text text-primary">
+                                    {{ "{:,.2f}".format(med.price) }} <span class="text-muted fw-normal small">฿</span>
+                                </td>
+                                <td class="text-center">
+                                    <!-- ปุ่มลบรูปถังขยะแบบเดี่ยว -->
+                                    <form action="/medicines/delete/{{ med.id }}" method="post" onsubmit="return confirm('คุณต้องการลบยา {{ med.name }} ออกจากคลังใช่หรือไม่?')" style="margin: 0; display: inline-block;">
+                                        <button type="submit" class="btn-delete-premium" title="ลบรายการยา">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+                                                <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-5">
+                                <div class="mb-2">
+                                    <svg style="width: 48px; height: 48px; fill: #cbd5e1;" viewBox="0 0 24 24">
+                                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/>
+                                    </svg>
+                                </div>
+                                <div class="small fw-medium text-secondary">ยังไม่มีรายการยาในคลังระบบ</div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
 </div>
 {% endblock %}

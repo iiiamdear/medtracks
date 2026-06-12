@@ -1,87 +1,383 @@
 {% extends "base.html" %}
-{% block title %}เภสัชกร - MedTrack{% endblock %}
-{% block page_title %}<i class="bi bi-person-badge me-2"></i>จัดการเภสัชกร{% endblock %}
+{% block title %}บุคลากรเภสัชกร - MedTrack{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <!-- Add Form -->
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-bold">
-          <i class="bi bi-person-plus me-2 text-primary"></i>เพิ่มเภสัชกร
-        </h6>
-      </div>
-      <div class="card-body">
-        <form method="post" action="/pharmacists/add">
-          <div class="mb-3">
-            <label class="form-label fw-bold">ชื่อ-นามสกุล <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold">เบอร์โทร</label>
-            <input type="text" name="phone" class="form-control" placeholder="0812345678">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold">อีเมล</label>
-            <input type="email" name="email" class="form-control">
-          </div>
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg me-1"></i>เพิ่มเภสัชกร
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<style>
+    /* Premium Theme & Global Variables */
+    :root {
+        --slate-50: #f8fafc;
+        --slate-100: #f1f5f9;
+        --slate-200: #e2e8f0;
+        --slate-300: #cbd5e1;
+        --slate-400: #94a3b8;
+        --slate-600: #475569;
+        --slate-700: #334155;
+        --slate-900: #0f172a;
+        --blue-600: #2563eb;
+        --blue-700: #1d4ed8;
+        --emerald-600: #059669;
+        --emerald-700: #047857;
+        
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
 
-  <!-- List -->
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header bg-white py-3">
-        <h6 class="mb-0 fw-bold">
-          <i class="bi bi-people me-2"></i>รายชื่อเภสัชกร
-          <span class="badge bg-primary ms-1">{{ pharmacists|length }}</span>
-        </h6>
-      </div>
-      <div class="card-body p-0">
-        {% if pharmacists %}
-        <table class="table table-hover mb-0">
-          <thead>
-            <tr>
-              <th class="ps-3">#</th>
-              <th>ชื่อ</th>
-              <th>เบอร์โทร</th>
-              <th>อีเมล</th>
-              <th class="text-center">ลบ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ph in pharmacists %}
-            <tr>
-              <td class="ps-3 text-muted small">{{ ph.id }}</td>
-              <td class="fw-bold">{{ ph.name }}</td>
-              <td>{{ ph.phone or "-" }}</td>
-              <td>{{ ph.email or "-" }}</td>
-              <td class="text-center">
-                <form method="post" action="/pharmacists/delete/{{ ph.id }}"
-                      onsubmit="return confirm('ลบ {{ ph.name }}?')">
-                  <button class="btn btn-sm btn-outline-danger">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="text-center py-5 text-muted">
-          <i class="bi bi-people" style="font-size:3rem;"></i>
-          <p class="mt-2">ยังไม่มีเภสัชกร</p>
+    .med-workspace {
+        font-family: var(--font-sans);
+        color: var(--slate-900);
+        background-color: var(--slate-50);
+        min-height: 100vh;
+        padding: 1.5rem 0;
+    }
+
+    /* สไตล์การ์ดพรีเมียมแบบไร้ขอบตัดด้วยเงาละมุน */
+    .premium-panel {
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 16px;
+        box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.03), 0 1px 3px rgba(15, 23, 42, 0.02);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .premium-panel:hover {
+        box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.06);
+    }
+
+    /* หัวข้อหน้าเพจ */
+    .page-header-title {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--slate-900);
+        letter-spacing: -0.02em;
+    }
+
+    /* สไตล์ช่องกรอกข้อมูล (Elegant Minimal Form) */
+    .form-group-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--slate-600);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input-premium {
+        width: 100%;
+        border: 1px solid var(--slate-200);
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.925rem;
+        color: var(--slate-900);
+        transition: all 0.2s ease;
+    }
+
+    .form-input-premium:focus {
+        border-color: var(--blue-600);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+        outline: none;
+    }
+
+    .form-input-premium::placeholder {
+        color: var(--slate-400);
+    }
+
+    /* สไตล์ตารางเรียบหรูสไตล์ Minimal Tech */
+    .table-premium {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-premium th {
+        background-color: var(--slate-50);
+        color: var(--slate-600);
+        font-size: 0.775rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--slate-200);
+    }
+
+    .table-premium td {
+        padding: 1.1rem 1.25rem;
+        border-bottom: 1px solid var(--slate-100);
+        font-size: 0.9rem;
+        color: var(--slate-700);
+    }
+
+    .table-premium tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .table-premium tbody tr:hover {
+        background-color: rgba(248, 250, 252, 0.75);
+    }
+
+    /* กล่องค้นหา (Seamless Search) */
+    .search-container {
+        position: relative;
+        max-width: 280px;
+        width: 100%;
+    }
+
+    .search-container input {
+        width: 100%;
+        padding: 0.55rem 0.85rem 0.55rem 2.2rem;
+        border-radius: 9999px; /* Pill Shape */
+        border: 1px solid var(--slate-200);
+        font-size: 0.875rem;
+        background-color: var(--slate-50);
+        transition: all 0.2s ease;
+    }
+
+    .search-container input:focus {
+        background-color: #ffffff;
+        border-color: var(--blue-600);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+        outline: none;
+    }
+
+    .search-container .search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--slate-400);
+        font-size: 0.85rem;
+    }
+
+    /* ปุ่มลบสไตล์ Minimal (ซ่อนถังขยะและแสดงเมื่อ Hover เพื่อลด Noise ทางสายตา) */
+    .btn-trash-minimal {
+        background: transparent;
+        border: none;
+        color: var(--slate-400);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-trash-minimal:hover {
+        background-color: #fef2f2;
+        color: #ef4444;
+    }
+
+    /* ปุ่ม Submit พรีเมียม */
+    .btn-action-primary {
+        background-color: var(--emerald-600);
+        color: #ffffff;
+        border: none;
+        font-weight: 600;
+        font-size: 0.925rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 10px;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-action-primary:hover {
+        background-color: var(--emerald-700);
+        transform: translateY(-1px);
+    }
+
+    .btn-action-primary:active {
+        transform: translateY(0);
+    }
+</style>
+
+<div class="med-workspace">
+    <div class="container-fluid px-4">
+        
+        <!-- Header Section -->
+        <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom" style="border-color: var(--slate-200) !important;">
+            <div>
+                <h4 class="page-header-title mb-1">จัดการรายชื่อเภสัชกร</h4>
+            </div>
+        </div>
+
+        <!-- Alert Banner กรณีติดการใช้งานในระบบจัดส่งยา -->
+        {% if request.query_params.get('error') == 'in_use' %}
+        <div class="alert border-0 p-3.5 mb-4 d-flex align-items-center" role="alert" style="background-color: #fef2f2; border-left: 4px solid #ef4444 !important; border-radius: 12px;">
+            <svg style="width: 20px; height: 20px; fill: #ef4444; margin-right: 12px; flex-shrink: 0;" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <div>
+                <span class="fw-bold" style="color: #991b1b; font-size: 0.9rem;">ลบไม่สำเร็จ</span>
+                <span style="color: #7f1d1d; font-size: 0.85rem; margin-left: 4px;">— เภสัชกรท่านนี้มีประวัติทำงานผูกอยู่กับใบจัดส่งยาในระบบค้างอยู่</span>
+            </div>
+            <button type="button" class="btn-close ms-auto shadow-none" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
         </div>
         {% endif %}
-      </div>
+
+        <div class="row g-4">
+            <!-- ซ้าย: การ์ดเพิ่มเภสัชกร -->
+            <div class="col-xl-4 col-lg-5">
+                <div class="premium-panel sticky-form">
+                    <div class="p-4 border-bottom" style="border-color: var(--slate-100);">
+                        <h6 class="fw-bold m-0 text-dark d-flex align-items-center gap-2">
+                            <span style="color: var(--emerald-600); font-size: 1.15rem;">✚</span>เพิ่มรายชื่อเภสัชกร
+                        </h6>
+                    </div>
+                    <div class="p-4">
+                        <form method="post" action="/pharmacists/add" style="margin: 0;">
+                            <div class="mb-3.5">
+                                <label class="form-group-label">ชื่อ - นามสกุลจริง *</label>
+                                <input type="text" name="name" class="form-input-premium" placeholder="ตัวอย่าง: ภญ.สุชาดา จิตต์ใจดี" required autocomplete="off">
+                            </div>
+                            
+                            <div class="mb-3.5">
+                                <label class="form-group-label">เบอร์โทรศัพท์มือถือ</label>
+                                <input type="text" name="phone" class="form-input-premium" placeholder="เช่น 0812345678" autocomplete="off">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-group-label">ที่อยู่อีเมลหน่วยงาน (Email)</label>
+                                <input type="email" name="email" class="form-input-premium" placeholder="name@hospital.com" autocomplete="off">
+                            </div>
+                            
+                            <button type="submit" class="btn-action-primary shadow-sm">
+                                บันทึกและอนุมัติรายชื่อ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ขวา: ตารางรายชื่อทั้งหมดในระบบ -->
+            <div class="col-xl-8 col-lg-7">
+                <div class="premium-panel overflow-hidden">
+                    <div class="p-4 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3" style="border-color: var(--slate-100);">
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="fw-bold text-dark m-0">รายชื่อเภสัชกร</h6>
+                        </div>
+                        
+                        <!-- ช่องพิมพ์ค้นหาแบบ Dynamic Search -->
+                        <div class="search-container">
+                            <span class="search-icon"><i class="bi bi-search"></i></span>
+                            <input type="text" id="phSearch" placeholder="พิมพ์ชื่อ, เบอร์โทร เพื่อค้นหา...">
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="margin: 0;">
+                        <table class="table-premium">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px; text-align: center;">รหัส ID</th>
+                                    <th>ชื่อเภสัชกรผู้ปฏิบัติงาน</th>
+                                    <th>ข้อมูลการติดต่อ</th>
+                                    <th>อีเมลผู้ติดต่อ</th>
+                                    <th style="width: 80px; text-align: center;">ลบข้อมูล</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if pharmacists %}
+                                    {% for ph in pharmacists %}
+                                    <tr class="ph-row">
+                                        <td class="text-center" style="font-family: monospace; color: var(--slate-400); font-size: 0.85rem;">
+                                            #{{ ph.id }}
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-dark ph-name" style="font-size: 0.95rem;">{{ ph.name }}</span>
+                                        </td>
+                                        <td class="ph-phone">
+                                            {% if ph.phone %}
+                                                <span class="text-dark">{{ ph.phone }}</span>
+                                            {% else %}
+                                                <span class="text-muted opacity-50 small">- ไม่ระบุ -</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="ph-email">
+                                            {% if ph.email %}
+                                                <span style="color: var(--slate-600); font-size: 0.875rem;">{{ ph.email }}</span>
+                                            {% else %}
+                                                <span class="text-muted opacity-50 small">- ไม่ระบุ -</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <form method="post" action="/pharmacists/delete/{{ ph.id }}"
+                                                  onsubmit="return confirm('คุณต้องการลบรายชื่อ {{ ph.name }} ออกจากระบบใช่หรือไม่?')" style="margin: 0;">
+                                                <button type="submit" class="btn-trash-minimal" title="ลบรายชื่อออก">
+                                                    <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                    <!-- แถวแจ้งค้นหาแล้วไม่พบอะไร -->
+                                    <tr id="noResultRow" style="display: none;">
+                                        <td colspan="5" class="text-center py-5">
+                                            <div class="text-muted small mb-2">
+                                                <svg style="width: 32px; height: 32px; fill: var(--slate-300);" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                                                </svg>
+                                            </div>
+                                            <div class="fw-semibold text-secondary">ไม่พบข้อมูลที่ตรงกับการค้นหา</div>
+                                            <div class="text-muted small">โปรดตรวจสอบการพิมพ์ค้นหาของคุณอีกครั้ง</div>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <div class="mb-2">
+                                                <svg style="width: 42px; height: 42px; fill: var(--slate-200);" viewBox="0 0 24 24">
+                                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                                                </svg>
+                                            </div>
+                                            <div class="fw-semibold text-secondary mb-1">ยังไม่มีรายชื่อเภสัชกรอยู่ในฐานข้อมูล</div>
+                                            <p class="small text-muted mb-0">กรุณาบันทึกข้อมูลของเภสัชกรเข้าสู่ระบบด้วยฟอร์มซ้ายมือ</p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('phSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('.ph-row');
+                const noResultRow = document.getElementById('noResultRow');
+                let matchesFound = false;
+
+                rows.forEach(row => {
+                    const name = row.querySelector('.ph-name').textContent.toLowerCase();
+                    const phone = row.querySelector('.ph-phone').textContent.toLowerCase();
+                    const email = row.querySelector('.ph-email').textContent.toLowerCase();
+                    
+                    if (name.includes(query) || phone.includes(query) || email.includes(query)) {
+                        row.style.display = "";
+                        matchesFound = true;
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+
+                if (noResultRow) {
+                    if (!matchesFound && query !== "") {
+                        noResultRow.style.display = "table-row";
+                    } else {
+                        noResultRow.style.display = "none";
+                    }
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

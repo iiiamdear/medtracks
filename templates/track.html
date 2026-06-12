@@ -6,123 +6,275 @@
   <title>ติดตามเอกสาร #{{ doc.id }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
   <style>
-    * { font-family: 'Sarabun', sans-serif; }
-    body { background: #f0f4f8; }
-    .step-card { border-radius: 12px; transition: all 0.2s; cursor: pointer; }
-    .step-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-    .step-done { border: 2px solid #27ae60; background: #eafaf1; }
-    .step-next { border: 2px solid #2980b9; background: #eaf4fb; }
-    .step-wait { border: 2px solid #dee2e6; }
+    body { 
+      font-family: 'Inter', 'Noto Sans Thai', sans-serif; 
+      background-color: #f8fafc;
+    }
+    .step-card { 
+      border-radius: 1rem; 
+      transition: all 0.2s ease-in-out; 
+    }
+    .step-done { 
+      border: 1px solid #bbf7d0 !important; 
+      background-color: #f0fdf4 !important; 
+    }
+    .step-next { 
+      border: 2px solid #3b82f6 !important; 
+      background-color: #eff6ff !important;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+    }
+    .step-wait { 
+      border: 1px solid #e2e8f0 !important; 
+      background-color: #ffffff !important;
+      opacity: 0.6;
+    }
+    .font-mono-custom {
+      font-family: 'Inter', monospace;
+    }
+    /* ปรับแต่งสไตล์ตารางยาเพิ่มเติม */
+    .med-table th {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background-color: #f8fafc;
+      color: #64748b;
+    }
+    .med-table td {
+      font-size: 0.825rem;
+      vertical-align: middle;
+    }
+    .usage-badge {
+      font-size: 0.75rem;
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #dbeafe;
+      border-radius: 0.5rem;
+      padding: 0.25rem 0.5rem;
+    }
   </style>
 </head>
 <body>
-<div class="container py-4" style="max-width:600px;">
+
+<div class="container py-4 md:py-5" style="max-width:550px;">
+  
   <div class="text-center mb-4">
-    <i class="bi bi-capsule-pill text-success" style="font-size:2.5rem;"></i>
-    <h5 class="fw-bold mt-2">MedTrack</h5>
-    <p class="text-muted small">ระบบติดตามเอกสารยา</p>
+    <div class="d-inline-flex p-3 bg-white shadow-sm rounded-4 text-primary mb-2 border border-light">
+      <i class="bi bi-capsule-pill fs-2 text-primary" style="line-height: 1;"></i>
+    </div>
+    <h4 class="fw-black text-dark mb-1 tracking-tight">MedTrack</h4>
+    <p class="text-muted small mb-0">ระบบบันทึกและติดตามสถานะเอกสารยา</p>
   </div>
 
-  <!-- Doc Info -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <div class="row">
-        <div class="col-6">
-          <small class="text-muted">HN</small>
-          <p class="fw-bold mb-1">{{ doc.hn }}</p>
-          <small class="text-muted">ชื่อผู้ป่วย</small>
-          <p class="fw-bold mb-0">{{ doc.patient_name }}</p>
+  <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+    <div class="card-body p-4 bg-white">
+      <div class="row g-3">
+        <div class="col-6 border-end border-light">
+          <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">HN</small>
+          <p class="fw-bold text-dark font-mono-custom mb-2">{{ doc.hn }}</p>
+          
+          <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">ชื่อผู้ป่วย</small>
+          <p class="fw-bold text-slate-800 mb-0">{{ doc.patient_name }}</p>
         </div>
-        <div class="col-6">
-          <small class="text-muted">แพทย์</small>
-          <p class="fw-bold mb-1">{{ doc.doctor }}</p>
-          <small class="text-muted">สิทธิ์</small>
-          <p class="fw-bold mb-0">{{ doc.rights }}</p>
+        <div class="col-6 ps-3">
+          <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">แพทย์ผู้สั่ง</small>
+          <p class="fw-semibold text-slate-800 mb-2">{{ doc.doctor }}</p>
+          
+          <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">สิทธิ์การรักษา</small>
+          <p class="fw-medium text-slate-700 mb-0">{{ doc.rights }}</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Alert -->
-  {% if success %}
-  <div class="alert alert-success">
-    <i class="bi bi-check-circle-fill me-2"></i>บันทึกสำเร็จ!
+  <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 flex items-center">
+      <span class="fw-bold text-dark"><i class="bi bi-list-check text-primary me-2"></i>รายการยาและวิธีใช้</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table med-table table-hover mb-0 align-middle">
+        <thead>
+          <tr>
+            <th class="text-center px-3" style="width: 50px;">#</th>
+            <th class="px-2">ชื่อยา</th>
+            <th class="px-2">วิธีใช้</th>
+            <th class="text-center px-2" style="width: 70px;">จำนวน</th>
+            <th class="text-end px-3" style="width: 100px;">รวม (บาท)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if doc.items %}
+            {% for item in doc.items %}
+            <tr>
+              <td class="text-center text-muted fw-bold px-3">{{ loop.index }}</td>
+              <td class="fw-bold text-dark px-2">
+                {% if item.medicine_name %}
+                  {{ item.medicine_name }}
+                {% elif item.medicine and item.medicine.name %}
+                  {{ item.medicine.name }}
+                {% else %}
+                  ยา ID: {{ item.medicine_id }}
+                {% endif %}
+              </td>
+              <td class="px-2">
+                <div class="usage-badge text-wrap">
+                  {{ item.dose or item.usage_instruction or 'ไม่ได้ระบุวิธีใช้' }}
+                </div>
+              </td>
+              <td class="text-center fw-semibold text-dark px-2">
+                {{ item.quantity }}
+                <div class="text-muted" style="font-size: 0.65rem; font-weight: normal;">
+                  {% if item.unit %}{{ item.unit }}{% elif item.medicine and item.medicine.unit %}{{ item.medicine.unit }}{% else %}เม็ด{% endif %}
+                </div>
+              </td>
+              <td class="text-end fw-bold font-mono-custom px-3 text-dark">
+                {% if item.total_price %}
+                  {{ "{:,.2f}".format(item.total_price) }}
+                {% else %}
+                  {{ "{:,.2f}".format((item.price_per_unit or item.unit_price or 0) * (item.quantity or 0)) }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light fw-bold">
+              <td colspan="4" class="text-end text-muted small py-3 px-3">มูลค่ารวมทั้งสิ้น:</td>
+              <td class="text-end text-primary fs-6 py-3 px-3 font-mono-custom">
+                {{ "{:,.2f}".format(doc.total_price or 0) }}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted small">
+                <i class="bi bi-box shadow-xs d-block fs-3 mb-1 text-light"></i>
+                ไม่มีรายการยาในเอกสารนี้
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
-  {% endif %}
-  {% if error %}
-  <div class="alert alert-danger">
-    <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+
+  {% if success %}
+  <div class="alert alert-success border-0 shadow-sm rounded-3 py-3 px-4 mb-4 d-flex align-items-center">
+    <i class="bi bi-check-circle-fill me-3 fs-5 text-success"></i>
+    <div class="fw-semibold">บันทึกและอัปเดตสเต็ปงานสำเร็จแล้ว</div>
   </div>
   {% endif %}
 
-  <!-- Steps Status -->
-  <div class="row g-3 mb-4">
+  {% if error %}
+  <div class="alert alert-danger border-0 shadow-sm rounded-3 py-3 px-4 mb-4 d-flex align-items-center">
+    <i class="bi bi-exclamation-circle-fill me-3 fs-5 text-danger"></i>
+    <div class="fw-medium">{{ error }}</div>
+  </div>
+  {% endif %}
+
+  <!-- ตรวจสอบสถานะขั้นตอนปัจจุบัน (ปรับเป็น 4 ขั้นตอน) -->
+  {% set current_step = 0 %}
+  {% if doc.step1_scanned_at %}
+    {% set current_step = 1 %}
+  {% endif %}
+  {% if doc.step2_scanned_at %}
+    {% set current_step = 2 %}
+  {% endif %}
+  {% if doc.step3_scanned_at %}
+    {% set current_step = 3 %}
+  {% endif %}
+  {% if doc.step4_scanned_at %}
+    {% set current_step = 4 %}
+  {% endif %}
+
+  <!-- รายการขั้นตอน (ปรับแทรกขั้นตอนที่ 3: งานธุรการ และขั้นตอนที่ 4: งานจัดซื้อ พร้อมใช้คลาส col-3 เพื่อให้เรียงกันสวยงาม) -->
+  <div class="row g-2 mb-4">
     {% set steps = [
       (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
-      (2, "งานประกัน",  doc.step2_scanned_at, doc.step2_name),
-      (3, "งานจัดซื้อ", doc.step3_scanned_at, doc.step3_name)
+      (2, "งานประกัน", doc.step2_scanned_at, doc.step2_name),
+      (3, "งานธุรการ", doc.step3_scanned_at, doc.step3_name),
+      (4, "งานจัดซื้อ", doc.step4_scanned_at, doc.step4_name)
     ] %}
     {% for num, label, scanned_at, name in steps %}
-    <div class="col-4">
-      <div class="card text-center py-3
+    <div class="col-3">
+      <div class="card text-center py-3 px-1 border-0 shadow-xs step-card h-100
         {% if scanned_at %}step-done
-        {% elif doc.step_status.current == num - 1 %}step-next
+        {% elif current_step == num - 1 %}step-next
         {% else %}step-wait{% endif %}">
+        
+        <div class="mb-1">
+          {% if scanned_at %}
+          <i class="bi bi-check-circle-fill text-success fs-4"></i>
+          {% elif current_step == num - 1 %}
+          <i class="bi bi-arrow-right-circle-fill text-primary fs-4 animate-pulse"></i>
+          {% else %}
+          <i class="bi bi-dash-circle text-muted fs-4"></i>
+          {% endif %}
+        </div>
+        
+        <p class="small fw-bold mb-1 {% if current_step == num - 1 %}text-primary{% else %}text-dark{% endif %}" style="font-size: 0.75rem;">{{ label }}</p>
+        
         {% if scanned_at %}
-        <i class="bi bi-check-circle-fill text-success fs-4"></i>
-        {% else %}
-        <i class="bi bi-circle text-muted fs-4"></i>
+          <p class="text-muted font-mono-custom mb-0" style="font-size:0.6rem; line-height:1.2;">
+            {{ scanned_at | thdate }}
+          </p>
         {% endif %}
-        <p class="small fw-bold mb-0 mt-1">{{ label }}</p>
-        {% if scanned_at %}
-        <p class="x-small text-muted mb-0" style="font-size:0.7rem;">
-          {{ scanned_at | thdate }}  <!-- ✅ แก้จาก strftime เป็น thdate -->
-        </p>
+        {% if name %}
+          <p class="text-secondary fw-medium mb-0 mt-0.5 text-truncate px-1" style="font-size:0.6rem;" title="{{ name }}">
+            {{ name }}
+          </p>
         {% endif %}
       </div>
     </div>
     {% endfor %}
   </div>
 
-  <!-- Scan Form -->
   {% if not doc.is_finished %}
-    {% set next_step = doc.step_status.current + 1 %}
-    {% if next_step <= 3 %}
-    <div class="card">
-      <div class="card-header bg-primary text-white">
-        <h6 class="mb-0">
+    {% set next_step = current_step + 1 %}
+    {% if next_step <= 4 %}
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+      <div class="card-header bg-primary text-white py-3 px-4 border-0">
+        <h6 class="mb-0 fw-bold flex items-center">
           <i class="bi bi-qr-code-scan me-2"></i>
-          บันทึกขั้นที่ {{ next_step }}
+          บันทึกขั้นตอนที่ {{ next_step }}
         </h6>
       </div>
-      <div class="card-body">
+      <div class="card-body p-4 bg-white">
         <form method="post">
           <input type="hidden" name="step" value="{{ next_step }}">
-          <div class="mb-3">
-            <label class="form-label fw-bold">ชื่อผู้รับ</label>
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-secondary mb-2">ชื่อผู้รับ / ผู้บันทึกเอกสาร</label>
             <input type="text" name="scanner_name"
-                   class="form-control form-control-lg"
-                   placeholder="กรอกชื่อ..." required autofocus>
+                   class="form-control form-control-lg border-2 bg-light border-0 rounded-3 text-dark fs-6 py-2.5 px-3 focus:bg-white"
+                   placeholder="กรุณากรอกชื่อ-นามสกุลของคุณ" required autofocus>
           </div>
-          <button type="submit" class="btn btn-primary w-100 py-2">
-            <i class="bi bi-check2 me-2"></i>ยืนยันรับเอกสาร
+          <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold shadow-sm py-2.5 fs-6">
+            <i class="bi bi-check2-circle me-2"></i>ยืนยันและอัปเดตสถานะ
           </button>
         </form>
       </div>
     </div>
     {% else %}
-    <div class="alert alert-success text-center">
-      <i class="bi bi-check-circle-fill me-2 fs-4"></i>
-      <strong>ครบทุกขั้นตอนแล้ว!</strong>
+    <div class="alert alert-success text-center border-0 shadow-sm rounded-4 py-4 px-3 mb-0">
+      <div class="p-2 bg-white d-inline-block rounded-circle mb-2 text-success shadow-xs">
+        <i class="bi bi-check-all fs-2" style="line-height: 1;"></i>
+      </div>
+      <h6 class="fw-bold text-success mb-1">ครบทุกขั้นตอนแล้ว!</h6>
+      <p class="text-muted small mb-0">เอกสารชุดนี้ผ่านการรับและตรวจสอบครบถ้วนในระบบแล้ว</p>
     </div>
     {% endif %}
   {% else %}
-  <div class="alert alert-secondary text-center">
-    <i class="bi bi-lock-fill me-2"></i>เอกสารนี้ปิดแล้ว
+  <div class="alert alert-secondary text-center border-0 shadow-sm rounded-4 py-4 px-3 mb-0">
+    <div class="p-2 bg-white d-inline-block rounded-circle mb-2 text-secondary shadow-xs">
+      <i class="bi bi-lock-fill fs-3" style="line-height: 1;"></i>
+    </div>
+    <h6 class="fw-bold text-secondary mb-1">เอกสารนี้ถูกปิดเรียบร้อยแล้ว</h6>
+    <p class="text-muted small mb-0">ไม่สามารถแก้ไขหรือสแกนรับช่วงสเต็ปเพิ่มได้</p>
   </div>
   {% endif %}
+
 </div>
+
 </body>
 </html>
