@@ -146,7 +146,7 @@
                 {{ "{:,.2f}".format(doc.total_price or 0) }}
               </td>
             </tr>
-          {% else %}
+          {%   else %}
             <tr>
               <td colspan="5" class="text-center py-4 text-muted small">
                 <i class="bi bi-box shadow-xs d-block fs-3 mb-1 text-light"></i>
@@ -173,7 +173,6 @@
   </div>
   {% endif %}
 
-  <!-- ตรวจสอบสถานะขั้นตอนปัจจุบัน (ปรับเป็น 4 ขั้นตอน) -->
   {% set current_step = 0 %}
   {% if doc.step1_scanned_at %}
     {% set current_step = 1 %}
@@ -181,20 +180,19 @@
   {% if doc.step2_scanned_at %}
     {% set current_step = 2 %}
   {% endif %}
-  {% if doc.step3_scanned_at %}
+  {% if getattr(doc, 'step3_scanned_at', None) %}
     {% set current_step = 3 %}
   {% endif %}
-  {% if doc.step4_scanned_at %}
+  {% if getattr(doc, 'step4_scanned_at', None) %}
     {% set current_step = 4 %}
   {% endif %}
 
-  <!-- รายการขั้นตอน (ปรับแทรกขั้นตอนที่ 3: งานธุรการ และขั้นตอนที่ 4: งานจัดซื้อ พร้อมใช้คลาส col-3 เพื่อให้เรียงกันสวยงาม) -->
   <div class="row g-2 mb-4">
     {% set steps = [
       (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
       (2, "งานประกัน", doc.step2_scanned_at, doc.step2_name),
-      (3, "งานธุรการ", doc.step3_scanned_at, doc.step3_name),
-      (4, "งานจัดซื้อ", doc.step4_scanned_at, doc.step4_name)
+      (3, "งานธุรการ", getattr(doc, 'step3_scanned_at', None), getattr(doc, 'step3_name', None)),
+      (4, "งานจัดซื้อ", getattr(doc, 'step4_scanned_at', None), getattr(doc, 'step4_name', None))
     ] %}
     {% for num, label, scanned_at, name in steps %}
     <div class="col-3">
@@ -241,7 +239,7 @@
         </h6>
       </div>
       <div class="card-body p-4 bg-white">
-        <form method="post">
+        <form method="post" action="/track/{{ doc.id }}">
           <input type="hidden" name="step" value="{{ next_step }}">
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary mb-2">ชื่อผู้รับ / ผู้บันทึกเอกสาร</label>
