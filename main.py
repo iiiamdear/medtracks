@@ -8,7 +8,7 @@ import os
 
 import qrcode
 import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยเเทน UTC มาตรฐาน
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -81,9 +81,9 @@ def get_base_url(request: Request) -> str:
 
 
 def get_step_status(doc) -> dict:
-    if getattr(doc, 'step4_scanned_at', None):
+    if doc.step4_scanned_at:
         return {"current": 4, "label": "งานจัดซื้อรับแล้ว", "color": "success"}
-    elif getattr(doc, 'step3_scanned_at', None):
+    elif doc.step3_scanned_at:
         return {"current": 3, "label": "งานธุรการรับแล้ว", "color": "indigo"}
     elif doc.step2_scanned_at:
         return {"current": 2, "label": "งานประกันรับแล้ว", "color": "primary"}
@@ -93,7 +93,6 @@ def get_step_status(doc) -> dict:
         return {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
 
 
-# ฟังก์ชันศูนย์กลางสำหรับดึงเวลาปัจจุบันของประเทศไทย (ป้องกันเวลาลอนดอนบน Render)
 def get_now_th():
     tz_thai = pytz.timezone('Asia/Bangkok')
     return datetime.now(tz_thai)
@@ -157,7 +156,6 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 
-# ตัวกรองวันที่ให้รองรับระบบตั้งค่า TZ บน Render อย่างปลอดภัย
 def thdate_filter(value):
     if not value:
         return ""
@@ -364,7 +362,6 @@ async def create_post(
     if response:
         return response
 
-    # 🛠️ ปรับปรุงวิธีการดึงอาเรย์ข้อมูลฟอร์มยาให้รองรับชื่อแท็กที่ส่งมาจาก HTML5 อย่างปลอดภัย 100%
     form_data = await request.form()
     medicine_ids = form_data.getlist("medicine_id[]")
     doses = form_data.getlist("dose[]")
@@ -387,7 +384,6 @@ async def create_post(
 
     grand_total = 0.0
     
-    # 🛠️ ประมวลผลลูปข้อมูลเรียงแถวตามจำนวนไอเทมที่กดสร้างจริง ป้องกันบั๊ก Array Index Out of Range
     for i, med_id in enumerate(medicine_ids):
         if not med_id or not med_id.strip():
             continue
@@ -396,9 +392,8 @@ async def create_post(
         if not med:
             continue
 
-        # จัดสรรค่าตัวเลขและรายละเอียดวิธีใช้
         qty = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
-        unit_price = float(med.price)  # ดึงราคากลางที่อัปเดตล่าสุดจาก Database ของยานั้นๆ มาคำนวณโดยตรง
+        unit_price = float(med.price)
         dose = doses[i] if i < len(doses) else ""
         row_total = qty * unit_price
 
@@ -416,7 +411,6 @@ async def create_post(
     doc.total_price = grand_total
     db.commit()
     
-    # ส่งสัญญาณรีเฟรชหน้าแดชบอร์ดคอมพิวเตอร์หลักทันทีที่มีการเปิดเคสใหม่
     await manager.broadcast("refresh_page")
     return RedirectResponse(url=f"/document/{doc.id}", status_code=302)
 
@@ -532,6 +526,12 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
+    # 🛠️ โหลดรายการยาแนบไปในระบบ เพื่อให้หน้าดึงดูดรายงานได้สมบูรณ์ ไม่เป็นค่าว่าง
+    items = db.query(models.DocumentItem)\
+              .options(joinedload(models.DocumentItem.medicine))\
+              .filter(models.DocumentItem.document_id == doc_id).all()
+    doc.items = items
+
     success = request.query_params.get("success") == "1"
     doc.step_status = get_step_status(doc)
     
@@ -565,10 +565,10 @@ async def track_post(
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
         doc.step2_scanned_at = now
         doc.step2_name = scanner_name
-    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
+    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not doc.step3_scanned_at:
         doc.step3_scanned_at = now
         doc.step3_name = scanner_name
-    elif step == 4 and getattr(doc, 'step3_scanned_at', None) and not getattr(doc, 'step4_scanned_at', None):
+    elif step == 4 and doc.step3_scanned_at and not doc.step4_scanned_at:
         doc.step4_scanned_at = now
         doc.step4_name = scanner_name
     else:
@@ -580,11 +580,19 @@ async def track_post(
         await manager.broadcast("refresh_page")
         return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
+    # 🛠️ บล็อกกรณีเกิด Error: ดึงความสัมพันธ์ยาโยนกลับเข้าไปให้หน้า Template 
+    # และเปลี่ยน status_code เป็น 422 เพื่อให้ Fetch ฝั่งหน้าบ้านดักรับข้อความ Error ไปโชว์กล่องแดงได้
+    items = db.query(models.DocumentItem)\
+              .options(joinedload(models.DocumentItem.medicine))\
+              .filter(models.DocumentItem.document_id == doc_id).all()
+    doc.items = items
     doc.step_status = get_step_status(doc)
+    
     return templates.TemplateResponse(
         request=request,
         name="track.html",
-        context={"doc": doc, "success": False, "error": error, "user": None}
+        context={"doc": doc, "success": False, "error": error, "user": None},
+        status_code=422
     )
 
 
