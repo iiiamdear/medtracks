@@ -7,7 +7,7 @@ import io
 import os
 
 import qrcode
-import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยแทน UTC มาตรฐาน
+import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยเเทน UTC มาตรฐาน
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -81,13 +81,13 @@ def get_base_url(request: Request) -> str:
 
 
 def get_step_status(doc) -> dict:
-    if doc.step4_scanned_at:
+    if getattr(doc, 'step4_scanned_at', None):
         return {"current": 4, "label": "งานจัดซื้อรับแล้ว", "color": "success"}
-    elif doc.step3_scanned_at:
+    elif getattr(doc, 'step3_scanned_at', None):
         return {"current": 3, "label": "งานธุรการรับแล้ว", "color": "indigo"}
-    elif doc.step2_scanned_at:
+    elif getattr(doc, 'step2_scanned_at', None):
         return {"current": 2, "label": "งานประกันรับแล้ว", "color": "primary"}
-    elif doc.step1_scanned_at:
+    elif getattr(doc, 'step1_scanned_at', None):
         return {"current": 1, "label": "เภสัชกรจัดส่งแล้ว", "color": "warning"}
     else:
         return {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
@@ -156,7 +156,7 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 
-# 🛠️ ปรับปรุงใหม่: ตัวกรองวันที่ที่ปลอดภัย ป้องกันข้อผิดพลาด 500
+# 🛠️ แก้ไขเซฟตี้: ตัวกรองวันที่ที่แข็งแกร่งขึ้น ป้องกันข้อมูลเวลาเก่าในเบสเสียหาย
 def thdate_filter(value):
     if not value:
         return "-"
@@ -170,6 +170,7 @@ def thdate_filter(value):
                 
             year = value.year
             thai_year = year + 543 if year < 2400 else year
+                
             return value.strftime(f"%d/%m/{thai_year} %H:%M")
         elif isinstance(value, str):
             return value[:16]
@@ -305,22 +306,39 @@ def index(request: Request, db: Session = Depends(database.get_db)):
     if response:
         return response
 
-    active_docs = db.query(models.Document).filter(
-        models.Document.is_finished == False
-    ).order_by(models.Document.created_at.desc()).all()
+    try:
+        active_docs = db.query(models.Document).filter(
+            models.Document.is_finished == False
+        ).order_by(models.Document.created_at.desc()).all()
+    except Exception:
+        active_docs = []
 
+    # 🛠️ ดักจับ Try-Except ป้องกันไอเทมในเบสเสียทำหน้าแรกเปิดไม่ขึ้น
     for doc in active_docs:
-        doc.step_status = get_step_status(doc)
+        try:
+            doc.step_status = get_step_status(doc)
+        except Exception:
+            doc.step_status = {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
+
+    try:
+        total_meds = db.query(models.Medicine).count()
+    except Exception:
+        total_meds = 0
+
+    try:
+        total_users = db.query(models.User).count()
+    except Exception:
+        total_users = 0
 
     stats = {
         "total_active": len(active_docs),
-        "step0": sum(1 for d in active_docs if d.step_status["current"] == 0),
-        "step1": sum(1 for d in active_docs if d.step_status["current"] == 1),
-        "step2": sum(1 for d in active_docs if d.step_status["current"] == 2),
-        "step3": sum(1 for d in active_docs if d.step_status["current"] == 3),
-        "step4": sum(1 for d in active_docs if d.step_status["current"] == 4),
-        "total_meds": db.query(models.Medicine).count(),
-        "total_users": db.query(models.User).count(),
+        "step0": sum(1 for d in active_docs if d.step_status.get("current", 0) == 0),
+        "step1": sum(1 for d in active_docs if d.step_status.get("current", 0) == 1),
+        "step2": sum(1 for d in active_docs if d.step_status.get("current", 0) == 2),
+        "step3": sum(1 for d in active_docs if d.step_status.get("current", 0) == 3),
+        "step4": sum(1 for d in active_docs if d.step_status.get("current", 0) == 4),
+        "total_meds": total_meds,
+        "total_users": total_users,
     }
 
     return templates.TemplateResponse(
@@ -531,6 +549,7 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
+    # 🛠️ โหลดรายการยาแนบไปในระบบ เพื่อให้หน้าดึงดูดรายงานได้สมบูรณ์ ไม่เป็นค่าว่าง
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
@@ -569,10 +588,10 @@ async def track_post(
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
         doc.step2_scanned_at = now
         doc.step2_name = scanner_name
-    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not doc.step3_scanned_at:
+    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
         doc.step3_scanned_at = now
         doc.step3_name = scanner_name
-    elif step == 4 and doc.step3_scanned_at and not doc.step4_scanned_at:
+    elif step == 4 and getattr(doc, 'step3_scanned_at', None) and not getattr(doc, 'step4_scanned_at', None):
         doc.step4_scanned_at = now
         doc.step4_name = scanner_name
     else:
@@ -584,6 +603,8 @@ async def track_post(
         await manager.broadcast("refresh_page")
         return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
+    # 🛠️ บล็อกกรณีเกิด Error: ดึงความสัมพันธ์ยาโยนกลับเข้าไปให้หน้า Template 
+    # และเปลี่ยน status_code เป็น 422 เพื่อให้ Fetch ฝั่งหน้าบ้านดักรับข้อความ Error ไปโชว์กล่องแดงได้
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
