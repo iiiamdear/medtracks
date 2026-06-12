@@ -579,22 +579,47 @@ async def track_post(
 
     if doc.is_finished:
         error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
-    elif step == 1 and not doc.step1_scanned_at:
-        doc.step1_scanned_at = now
-        doc.step1_name = scanner_name
-    elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
-        doc.step2_scanned_at = now
-        doc.step2_name = scanner_name
-    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
-        doc.step3_scanned_at = now
-        doc.step3_name = scanner_name
+    
+    # 🛠️ ปรับ Logic การอัปเดตสถานะแบบจับคู่ตรงกับค่าฟิลด์ในฐานข้อมูลโดยตรง (แก้บั๊กขั้นตอน 4 กดไม่ได้)
+    elif step == 1:
+        if not doc.step1_scanned_at:
+            doc.step1_scanned_at = now
+            doc.step1_name = scanner_name
+        else:
+            error = "ขั้นตอนนี้ได้รับการบันทึกไปเรียบร้อยแล้ว"
+            
+    elif step == 2:
+        if doc.step1_scanned_at and not doc.step2_scanned_at:
+            doc.step2_scanned_at = now
+            doc.step2_name = scanner_name
+        elif not doc.step1_scanned_at:
+            error = "กรุณารอ เภสัชกร บันทึกส่งข้อมูลก่อน"
+        else:
+            error = "ขั้นตอนนี้ได้รับการบันทึกไปเรียบร้อยแล้ว"
+            
+    elif step == 3:
+        if doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
+            setattr(doc, 'step3_scanned_at', now)
+            setattr(doc, 'step3_name', scanner_name)
+        elif not doc.step2_scanned_at:
+            error = "กรุณารอ งานประกัน บันทึกรับข้อมูลก่อน"
+        else:
+            error = "ขั้นตอนนี้ได้รับการบันทึกไปเรียบร้อยแล้ว"
+            
+    elif step == 4:
+        # เช็กความชัวร์ว่าขั้นที่ 3 (ธุรการ) มีการบันทึกวันเวลาไว้จริงในเบสแล้ว
+        has_step3 = getattr(doc, 'step3_scanned_at', None) is not None
+        is_step4_empty = getattr(doc, 'step4_scanned_at', None) is None
         
-    # 🛠️ ปรับแก้ตรงนี้: ปลดล็อกขั้นตอนที่ 4 ให้ทำงานได้ทันทีถ้ามีการเรียกมาและยังไม่มีเวลาบันทึก
-    elif step == 4 and not getattr(doc, 'step4_scanned_at', None):
-        doc.step4_scanned_at = now
-        doc.step4_name = scanner_name
+        if has_step3 and is_step4_empty:
+            setattr(doc, 'step4_scanned_at', now)
+            setattr(doc, 'step4_name', scanner_name)
+        elif not tyrannical_check and not has_step3:
+            error = "กรุณารอ งานธุรการ บันทึกรับข้อมูลก่อน"
+        else:
+            error = "ขั้นตอนนี้ได้รับการบันทึกไปเรียบร้อยแล้ว"
     else:
-        error = "ไม่สามารถบันทึกได้ กรุณาตรวจสอบขั้นตอน (ห้ามสแกนข้ามขั้นตอนเด็ดขาด)"
+        error = "ระบบไม่รองรับขั้นตอนดังกล่าว"
 
     if not error:
         db.commit()

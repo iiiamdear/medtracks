@@ -66,6 +66,10 @@ class Document(Base):
     step3_scanned_at = Column(DateTime, nullable=True)
     step3_name = Column(String, nullable=True)
 
+    # 🟢 เพิ่มคอลลัมน์สำหรับขั้นที่ 4 (งานจัดซื้อ) รองรับการบันทึกข้อมูลเรียบร้อยครับ
+    step4_scanned_at = Column(DateTime, nullable=True)
+    step4_name = Column(String, nullable=True)
+
     pharmacist = relationship("Pharmacist", back_populates="documents")
     user = relationship("User", back_populates="documents")
     items = relationship(
