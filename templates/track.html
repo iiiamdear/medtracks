@@ -55,13 +55,12 @@
       border-radius: 0.5rem;
       padding: 0.25rem 0.5rem;
     }
-    /* สไตล์เพิ่มสำหรับลูกเล่นการรอโหลดสเต็ปปัจจุบัน */
     .animate-pulse-custom {
       animation: pulseCustom 2s infinite;
     }
     @keyframes pulseCustom {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.08); }
+      50% { opacity: 0.6; transform: scale(1.04); }
     }
   </style>
 </head>
@@ -85,15 +84,11 @@
           <p class="fw-bold text-dark font-mono-custom mb-2">{{ doc.hn }}</p>
           
           <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">ชื่อผู้ป่วย</small>
-          <p class="fw-bold text-slate-800 mb-0">{{ doc.patient_name }}</p>
-        </div>
+          <p class="fw-bold text-dark mb-0">{{ doc.patient_name }}</p> </div>
         <div class="col-6 ps-3">
           <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">แพทย์ผู้สั่ง</small>
-          <p class="fw-semibold text-slate-800 mb-2">{{ doc.doctor }}</p>
-          
-          <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">สิทธิ์การรักษา</small>
-          <p class="fw-medium text-slate-700 mb-0">{{ doc.rights }}</p>
-        </div>
+          <p class="fw-semibold text-dark mb-2">{{ doc.doctor }}</p> <small class="text-muted d-block text-uppercase fw-bold mb-1" style="font-size: 0.65rem;">สิทธิ์การรักษา</small>
+          <p class="fw-medium text-secondary mb-0">{{ doc.rights }}</p> </div>
       </div>
     </div>
   </div>
@@ -173,6 +168,11 @@
   </div>
   {% endif %}
 
+  <div id="ajax-error-alert" class="alert alert-danger border-0 shadow-sm rounded-3 py-3 px-4 mb-4 d-flex align-items-center d-none">
+    <i class="bi bi-exclamation-circle-fill me-3 fs-5 text-danger"></i>
+    <div id="ajax-error-text" class="fw-medium"></div>
+  </div>
+
   {% if error %}
   <div class="alert alert-danger border-0 shadow-sm rounded-3 py-3 px-4 mb-4 d-flex align-items-center">
     <i class="bi bi-exclamation-circle-fill me-3 fs-5 text-danger"></i>
@@ -181,18 +181,10 @@
   {% endif %}
 
   {% set current_step = 0 %}
-  {% if doc.step1_scanned_at %}
-    {% set current_step = 1 %}
-  {% endif %}
-  {% if doc.step2_scanned_at %}
-    {% set current_step = 2 %}
-  {% endif %}
-  {% if doc.step3_scanned_at %}
-    {% set current_step = 3 %}
-  {% endif %}
-  {% if doc.step4_scanned_at %}
-    {% set current_step = 4 %}
-  {% endif %}
+  {% if doc.step1_scanned_at %} {% set current_step = 1 %} {% endif %}
+  {% if doc.step2_scanned_at %} {% set current_step = 2 %} {% endif %}
+  {% if doc.step3_scanned_at %} {% set current_step = 3 %} {% endif %}
+  {% if doc.step4_scanned_at %} {% set current_step = 4 %} {% endif %}
 
   <div class="row g-2 mb-4">
     {% set steps = [
@@ -221,12 +213,12 @@
         <p class="small fw-bold mb-1 {% if current_step == num - 1 %}text-primary{% else %}text-dark{% endif %}" style="font-size: 0.75rem;">{{ label }}</p>
         
         {% if scanned_at %}
-          <p class="text-muted font-mono-custom mb-0" style="font-size:0.6rem; line-height:1.2;">
+          <p class="text-muted font-mono-custom mb-0" style="font-size:0.55rem; line-height:1.2;">
             {{ scanned_at | thdate }}
           </p>
         {% endif %}
         {% if name %}
-          <p class="text-secondary fw-medium mb-0 mt-0.5 text-truncate px-1" style="font-size:0.6rem;" title="{{ name }}">
+          <p class="text-secondary fw-medium mb-0 mt-0.5 text-truncate px-1" style="font-size:0.55rem;" title="{{ name }}">
             {{ name }}
           </p>
         {% endif %}
@@ -238,7 +230,7 @@
   {% if not doc.is_finished %}
     {% set next_step = current_step + 1 %}
     {% if next_step <= 4 %}
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="action-card-container">
       <div class="card-header bg-primary text-white py-3 px-4 border-0">
         <h6 class="mb-0 fw-bold d-flex align-items-center">
           <i class="bi bi-qr-code-scan me-2"></i>
@@ -246,15 +238,15 @@
         </h6>
       </div>
       <div class="card-body p-4 bg-white">
-        <form method="post" action="/track/{{ doc.id }}">
+        <form id="tracking-status-form">
           <input type="hidden" name="step" value="{{ next_step }}">
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary mb-2">ชื่อผู้รับ / ผู้บันทึกเอกสาร</label>
-            <input type="text" name="scanner_name"
+            <input type="text" name="scanner_name" id="scanner_name_input"
                    class="form-control form-control-lg border-2 bg-light border-0 rounded-3 text-dark fs-6 py-2.5 px-3"
                    placeholder="กรุณากรอกชื่อ-นามสกุลของคุณ" required autofocus>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold shadow-sm py-2.5 fs-6">
+          <button type="submit" id="submit-btn-spinner" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold shadow-sm py-2.5 fs-6">
             <i class="bi bi-check2-circle me-2"></i>ยืนยันและอัปเดตสถานะ
           </button>
         </form>
@@ -281,14 +273,12 @@
 
 </div>
 
-<!-- 🛠️ ===== WEBSOCKET SYSTEM WITH HEARTBEAT FOR RENDER ===== -->
 <script>
 let socket;
 let reconnectTimeout;
 let pingInterval;
 
 function connectTrackingWS() {
-    // ปรับเปลี่ยนโปรโตคอลตามโปรโตคอลของเว็บไซต์หลัก (http -> ws, https -> wss)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     
@@ -298,7 +288,6 @@ function connectTrackingWS() {
     socket.onopen = function() {
         console.log("✅ ท่อส่งข้อมูลเรียลไทม์ฝั่งผู้ติดตามเปิดใช้งานเรียบร้อย!");
         
-        // 🔥 ป้องกันท่อหลุด: ส่งสัญญาณชีพจรหลอก (Heartbeat ping) ไปที่ Server ทุกๆ 15 วินาที
         clearInterval(pingInterval);
         pingInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) {
@@ -308,7 +297,6 @@ function connectTrackingWS() {
     };
 
     socket.onmessage = function(event) {
-        // หากได้รับคำสั่งให้ทำการอัปเดตหน้าจอ
         if (event.data === "refresh_page") {
             console.log("📡 สถานะเปลี่ยนไป! กำลังรีเฟรชข้อมูลล่าสุดบนมือถือของคุณ...");
             window.location.reload();
@@ -319,7 +307,6 @@ function connectTrackingWS() {
         console.log("🔌 สัญญาณหลุดชั่วคราว กำลังพยายามเชื่อมต่อใหม่อัตโนมัติใน 2 วินาที...");
         clearInterval(pingInterval);
         clearTimeout(reconnectTimeout);
-        // ระบบรีคอนเนคอัตโนมัติ
         reconnectTimeout = setTimeout(connectTrackingWS, 2000);
     };
 
@@ -329,7 +316,42 @@ function connectTrackingWS() {
     };
 }
 
-// เริ่มเปิดการทำงานระบบตรวจจับข้อมูลทันที
+// 🛠️ ระบบป้องกันการกดเบิ้ลและค้างโดยใช้ Fetch API
+const statusForm = document.getElementById('tracking-status-form');
+if (statusForm) {
+    statusForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submit-btn-spinner');
+        const errorAlert = document.getElementById('ajax-error-alert');
+        const errorText = document.getElementById('ajax-error-text');
+        
+        // ล็อกปุ่มกดป้องกันการเบิ้ลข้อมูล
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังบันทึกข้อมูล...`;
+        errorAlert.classList.add('d-none');
+
+        const formData = new FormData(statusForm);
+
+        fetch('/track/{{ doc.id }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('ระบบหลังบ้านเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+            }
+            // ปล่อยให้ WebSocket ทำหน้าที่สั่ง Reload หน้าจอตามสเต็ปธรรมชาติ
+        })
+        .catch(err => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="bi bi-check2-circle me-2"></i>ยืนยันและอัปเดตสถานะ`;
+            errorText.innerText = err.message;
+            errorAlert.classList.remove('d-none');
+        });
+    });
+}
+
 connectTrackingWS();
 </script>
 

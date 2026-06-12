@@ -7,6 +7,7 @@ import io
 import os
 
 import qrcode
+import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยเเทน UTC มาตรฐาน
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -92,6 +93,12 @@ def get_step_status(doc) -> dict:
         return {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
 
 
+# ฟังก์ชันศูนย์กลางสำหรับดึงเวลาปัจจุบันของประเทศไทย (ป้องกันเวลาลอนดอนบน Render)
+def get_now_th():
+    tz_thai = pytz.timezone('Asia/Bangkok')
+    return datetime.now(tz_thai)
+
+
 # 🛠️ ===== WEBSOCKET CONNECTION MANAGER FOR RENDER =====
 class ConnectionManager:
     def __init__(self):
@@ -106,7 +113,6 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
-        # กรองล้างท่อเสียทิ้งระว่างส่งสัญญาณ ป้องกันค้างบน Render
         failed_connections = []
         for connection in self.active_connections:
             try:
@@ -151,11 +157,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
+
+# 🛠️ ปรับปรุงตัวกรองวันที่ให้รองรับระบบตั้งค่า TZ บน Render อย่างปลอดภัย (ไม่บวกปีซ้ำซ้อน)
 def thdate_filter(value):
     if not value:
         return ""
     if isinstance(value, datetime):
-        thai_year = value.year + 543
+        # ล็อกแปลงโซนเวลาให้กลายเป็นเวลาไทยก่อนแปลงข้อมูลออกหน้าจอ
+        tz_thai = pytz.timezone('Asia/Bangkok')
+        if value.tzinfo is None:
+            # ดึงเวลาแบบระบุโซนแบบนุ่มนวล
+            value = tz_thai.localize(value)
+        else:
+            value = value.astimezone(tz_thai)
+            
+        # ตรวจสอบ: หากค่าปีน้อยกว่า 2400 (คือเป็น ค.ศ.) ค่อยบวก 543 เพื่อทำเป็น พ.ศ.
+        year = value.year
+        if year < 2400:
+            thai_year = year + 543
+        else:
+            thai_year = year
+            
         return value.strftime(f"%d/%m/{thai_year} %H:%M")
     return str(value)
 
@@ -172,7 +194,6 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # ถ้าหน้าบ้านส่งชีพจร "ping" มา ให้คอยตอบกลับ "pong" เพื่อรักษาสายบน Render
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
@@ -368,7 +389,7 @@ async def create_post(
         note=note,
         pharmacist_id=ph_id,
         user_id=user.id,
-        created_at=datetime.now()
+        created_at=get_now_th()  # เปลี่ยนเป็นเวลาไทย
     )
     db.add(doc)
     db.flush()
@@ -416,10 +437,9 @@ async def finish_document(doc_id: int, request: Request, db: Session = Depends(d
         raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
 
     doc.is_finished = True
-    doc.finished_at = datetime.now()
+    doc.finished_at = get_now_th()  # เปลี่ยนเป็นเวลาไทย
     db.commit()
     
-    # แจ้งเตือนบอร์ดแคสเมื่อมีการกดเสร็จสิ้นงานด้วย
     await manager.broadcast("refresh_page")
     return RedirectResponse(url="/", status_code=302)
 
@@ -494,7 +514,6 @@ def view_document(doc_id: int, request: Request, db: Session = Depends(database.
     doc.step_status = get_step_status(doc)
     base_url = get_base_url(request)
     
-    # 🛠️ ตรวจจับหากรันอยู่บน Render ให้บังคับแปลงเป็นลิงก์ https เสมอ ป้องกันสแกนติดผสมโปรโตคอลผิดพลาด
     if "onrender.com" in base_url and base_url.startswith("http://"):
         base_url = base_url.replace("http://", "https://")
         
@@ -516,11 +535,14 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
+    # ดึงค่าพารามิเตอร์ success จาก URL เพื่อไปแสดงกล่องเขียวแจ้งเตือนบนมือถือ
+    success = request.query_params.get("success") == "1"
+
     doc.step_status = get_step_status(doc)
     return templates.TemplateResponse(
         request=request,
         name="track.html",
-        context={"doc": doc, "success": False, "error": None, "user": None}
+        context={"doc": doc, "success": success, "error": None, "user": None}
     )
 
 
@@ -536,7 +558,7 @@ async def track_post(
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    now = datetime.now()
+    now = get_now_th()  # 🛠️ ล็อกบันทึกเวลาให้เป็นเวลาไทย (GMT+7) เสมอ
     error = None
 
     if doc.is_finished:
@@ -559,14 +581,16 @@ async def track_post(
     if not error:
         db.commit()
         db.refresh(doc)
-        # 🚀 ยิงกระแทกสัญญาณแบบรวดเร็วส่งไปหาทุกจอคอมพิวเตอร์ที่ต่อท่ออยู่
+        # 🚀 กระจายสัญญาณสดหาคอมพิวเตอร์บอร์ดใหญ่ทันที
         await manager.broadcast("refresh_page")
+        # 🛠️ เปลี่ยนกลับด้วย Redirect คืนค่าโครงสร้างระบบเครือข่าย ป้องกันหน้าจอมือถือค้างและส่งข้อมูลซ้ำซ้อน
+        return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
     doc.step_status = get_step_status(doc)
     return templates.TemplateResponse(
         request=request,
         name="track.html",
-        context={"doc": doc, "success": error is None, "error": error, "user": None}
+        context={"doc": doc, "success": False, "error": error, "user": None}
     )
 
 

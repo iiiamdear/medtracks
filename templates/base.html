@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ระบบติดตามยา QR Tracking - MedTrack{% endblock %}</title>
+    <title>{% block title %}ระบบติดตามยา QR Tracking{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,62 +13,61 @@
             font-family: 'Inter', 'Noto Sans Thai', sans-serif;
         }
     </style>
-    {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-slate-50/60 min-h-screen flex flex-col">
 
     <nav class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 
-                <div class="flex items-center">
-                    <a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight text-white hover:opacity-90 transition-opacity">
-                        <span class="text-xl">💊</span> 
+                <div class="flex items-center flex-shrink-0">
+                    <a href="/" class="flex items-center gap-1.5 text-base sm:text-lg font-bold tracking-tight text-white hover:opacity-90 transition-opacity">
+                        <span class="text-lg sm:text-xl">💊</span> 
                         <span>MedTrack</span>
                     </a>
                 </div>
 
-                <div class="flex items-center gap-1 sm:gap-2">
-                    <a href="/" class="text-sm font-medium px-3 py-2 rounded-xl hover:bg-white/10 transition-colors">หน้าหลัก</a>
+                <div class="flex items-center gap-0.5 sm:gap-1.5 text-xs sm:text-sm">
+                    <a href="/" class="font-medium px-2 py-2 rounded-xl hover:bg-white/10 transition-colors">หน้าหลัก</a>
 
                     {% if user %}
-                        <a href="/create" class="text-sm font-medium px-3 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
+                        <a href="/create" class="font-medium px-2 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
                             <span>➕</span> <span class="hidden sm:inline">สร้างเอกสาร</span>
                         </a>
-                        <a href="/history" class="text-sm font-medium px-3 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
+                        <a href="/history" class="font-medium px-2 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
                             <span>📂</span> <span class="hidden sm:inline">ประวัติ</span>
                         </a>
-                        <a href="/medicines" class="text-sm font-medium px-3 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
-                            <span>📦</span> <span class="hidden sm:inline">รายการยา</span>
+                        <a href="/medicines" class="font-medium px-2 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
+                            <span>💊</span> <span class="hidden sm:inline">รายการยา</span>
                         </a>
-                        <a href="/pharmacists" class="text-sm font-medium px-3 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
+                        <a href="/pharmacists" class="font-medium px-2 py-2 rounded-xl hover:bg-white/10 transition-colors flex items-center gap-1">
                             <span>👨‍⚕️</span> <span class="hidden sm:inline">เภสัชกร</span>
                         </a>
 
                         {% if user.role == "admin" %}
-                        <div class="h-4 w-[1px] bg-white/20 mx-1 hidden md:block"></div>
-                        <a href="/users" class="text-sm font-medium px-3 py-2 bg-white/10 text-yellow-300 rounded-xl hover:bg-white/20 transition-colors flex items-center gap-1">
-                            <span>👥</span> <span>จัดการผู้ใช้</span>
+                        <div class="h-4 w-[1px] bg-white/20 mx-0.5 hidden md:block"></div>
+                        <a href="/users" class="font-medium px-2 py-2 bg-white/10 text-yellow-300 rounded-xl hover:bg-white/20 transition-colors flex items-center gap-1 flex-shrink-0">
+                            <span>👥</span> <span class="hidden md:inline">จัดการผู้ใช้</span><span class="md:hidden">ผู้ใช้</span>
                         </a>
                         {% endif %}
 
-                        <div class="h-5 w-[1px] bg-white/20 mx-2"></div>
-                        <div class="flex items-center gap-3 pl-1">
-                            <span class="text-xs bg-blue-700/50 px-2.5 py-1.5 rounded-lg font-medium text-blue-100 hidden lg:inline-block">
+                        <div class="h-5 w-[1px] bg-white/20 mx-1 hidden xs:block"></div>
+                        
+                        <div class="flex items-center gap-1.5 sm:gap-3 pl-0.5">
+                            <span class="text-[11px] bg-blue-700/40 border border-blue-500/30 px-2 py-1.5 rounded-xl font-medium text-blue-100 hidden lg:inline-block">
                                 👤 เจ้าหน้าที่: <span class="text-white font-bold">{{ user.username }}</span>
-                                <span class="text-[10px] bg-amber-500 text-slate-900 px-1.5 py-0.5 rounded ml-1 font-bold uppercase">{{ user.role }}</span>
                             </span>
                             
-                            <form action="/logout" method="post" class="inline m-0 flex items-center">
-                                <button type="submit" class="inline-flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white font-semibold px-3 py-2 rounded-xl text-xs shadow-sm shadow-rose-600/10 transition-all">
+                            <form action="/logout" method="post" class="inline m-0">
+                                <button type="submit" class="inline-flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white font-semibold px-2.5 sm:px-3 py-2 rounded-xl text-xs shadow-sm shadow-rose-600/10 transition-all active:scale-95">
                                     ออกจากระบบ
                                 </button>
                             </form>
                         </div>
                     {% else %}
-                        <div class="h-5 w-[1px] bg-white/20 mx-2"></div>
-                        <a href="/login" class="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all">
-                            ลงชื่อเข้าสู่ระบบ (Login)
+                        <div class="h-5 w-[1px] bg-white/20 mx-1 sm:mx-2"></div>
+                        <a href="/login" class="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3 sm:px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95">
+                            เข้าสู่ระบบ
                         </a>
                     {% endif %}
                 </div>
@@ -77,17 +76,11 @@
         </div>
     </nav>
 
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-slate-800">
-                {% block page_title %}{% endblock %}
-            </h1>
-        </div>
-
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-white border-t border-slate-100 py-4 text-center text-xs text-slate-400 mt-auto">
+    <footer class="bg-white border-t border-slate-100 py-4 text-center text-[11px] sm:text-xs text-slate-400 mt-auto">
         <p>&copy; 2026 MedTrack - ระบบจัดการและติดตามสถานะการนำส่งยาอัตโนมัติภายในโรงพยาบาล</p>
     </footer>
 
