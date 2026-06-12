@@ -198,4 +198,23 @@
 
 </div>
 
+<script>
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = function(event) {
+        // เมื่อได้รับสัญญาณ "refresh_page" ปุ๊บ สั่งรีเฟรชหน้าจอทันที!
+        if (event.data === "refresh_page") {
+            console.log("📡 มีการสแกนอัปเดตสเต็ปจากมือถือเข้ามา! กำลังรีเฟรชข้อมูล...");
+            window.location.reload(); 
+        }
+    };
+
+    socket.onclose = function() {
+        console.log("WebSocket หลุดการเชื่อมต่อ กำลังเชื่อมใหม่ใน 5 วินาที...");
+        setTimeout(() => { window.location.reload(); }, 5000);
+    };
+</script>
+
 {% endblock %}

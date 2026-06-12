@@ -7,15 +7,15 @@ import io
 import os
 
 import qrcode
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
+# 🛠️ เพิ่ม WebSocket และ WebSocketDisconnect เข้ามาจัดการเรียลไทม์
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session, joinedload  # 🔥 เพิ่ม joinedload สำหรับดึงข้อมูลความสัมพันธ์ยา
+from sqlalchemy.orm import Session, joinedload
 
 import models
 import database
-
 
 # สร้างตารางในฐานข้อมูล (หากยังไม่มี)
 models.Base.metadata.create_all(bind=database.engine)
@@ -81,7 +81,6 @@ def get_base_url(request: Request) -> str:
 
 
 def get_step_status(doc) -> dict:
-    # ปรับปรุงให้ตรวจเช็กไล่ลำดับย้อนกลับจาก 4 ลงไป 0 และป้องกันข้อผิดพลาดกรณีคอลัมน์ในฐานข้อมูลยังไม่อัปเดต
     if getattr(doc, 'step4_scanned_at', None):
         return {"current": 4, "label": "งานจัดซื้อรับแล้ว", "color": "success"}
     elif getattr(doc, 'step3_scanned_at', None):
@@ -92,6 +91,30 @@ def get_step_status(doc) -> dict:
         return {"current": 1, "label": "เภสัชกรจัดส่งแล้ว", "color": "warning"}
     else:
         return {"current": 0, "label": "รอดำเนินการ", "color": "secondary"}
+
+
+# 🛠️ ===== WEBSOCKET REAL-TIME CONNECTION MANAGER =====
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
+# =======================================================
 
 
 # ===== LIFESPAN =====
@@ -125,7 +148,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
-# ----- เพิ่มระบบลงทะเบียน Custom Filter 'thdate' เพื่อแก้ปัญหา Jinja2 Error -----
 def thdate_filter(value):
     if not value:
         return ""
@@ -135,10 +157,21 @@ def thdate_filter(value):
     return str(value)
 
 templates.env.filters["thdate"] = thdate_filter
-# --------------------------------------------------------------------------
 
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# 🛠️ ===== WEBSOCKET ENDPOINT =====
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+# ==================================
 
 
 # ===== AUTH =====
@@ -257,7 +290,6 @@ def index(request: Request, db: Session = Depends(database.get_db)):
     for doc in active_docs:
         doc.step_status = get_step_status(doc)
 
-    # 🛠️ แก้ไขเพิ่มคีย์ "step4" ให้ครบถ้วนเพื่อส่งไปนับสถิติบนหน้าเว็บ Template
     stats = {
         "total_active": len(active_docs),
         "step0": sum(1 for d in active_docs if d.step_status["current"] == 0),
@@ -313,7 +345,6 @@ async def create_post(
     if response:
         return response
 
-    # 🛠️ แกะข้อมูล Form Data เพื่อดึงอาร์เรย์รายการยาจากหน้าฟอร์มตรง ๆ 
     form_data = await request.form()
     
     medicine_ids = form_data.getlist("medicine_ids") or form_data.getlist("medicine_ids[]") or form_data.getlist("medicine_id") or form_data.getlist("medicine_id[]")
@@ -323,7 +354,6 @@ async def create_post(
 
     ph_id = int(pharmacist_id) if pharmacist_id and pharmacist_id.strip() else None
 
-    # 1. สร้างหัวเอกสารใบติดตามหลัก
     doc = models.Document(
         hn=hn,
         patient_name=patient_name,
@@ -337,7 +367,6 @@ async def create_post(
     db.add(doc)
     db.flush()
 
-    # 2. วนลูปบันทึกรายการยาลงตารางความสัมพันธ์
     grand_total = 0.0
     for i, med_id in enumerate(medicine_ids):
         if not med_id or not med_id.strip():
@@ -352,7 +381,6 @@ async def create_post(
         dose = doses[i] if i < len(doses) else ""
         row_total = qty * unit_price
 
-        # บันทึก Item รายการยา (ความสัมพันธ์ระหว่างเอกสารและตัวยา)
         item = models.DocumentItem(
             document_id=doc.id,
             medicine_id=med.id,
@@ -428,7 +456,7 @@ def history(request: Request, search: str = "", db: Session = Depends(database.g
     )
 
 
-# ===== DOCUMENT + QR (ดึงข้อมูลเอกสารและตารางยาร่วมอย่างสมบูรณ์) =====
+# ===== DOCUMENT + QR =====
 
 @app.get("/document/{doc_id}", response_class=HTMLResponse)
 def view_document(doc_id: int, request: Request, db: Session = Depends(database.get_db)):
@@ -454,7 +482,6 @@ def view_document(doc_id: int, request: Request, db: Session = Depends(database.
             item.usage_instruction = item.dose
 
     doc.items = items
-
     doc.step_status = get_step_status(doc)
     base_url = get_base_url(request)
     track_url = f"{base_url}/track/{doc_id}"
@@ -483,8 +510,9 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     )
 
 
+# 🛠️ ปรับเป็น async def และเพิ่มการยิงสัญญาณ broadcast บอกทุกหน้าจอให้รีเฟรช
 @app.post("/track/{doc_id}")
-def track_post(
+async def track_post(
     doc_id: int,
     request: Request,
     step: int = Form(...),
@@ -506,12 +534,10 @@ def track_post(
     elif step == 2 and doc.step1_scanned_at and not doc.step2_scanned_at:
         doc.step2_scanned_at = now
         doc.step2_name = scanner_name
-    elif step == 3 and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
-        # 💼 สเต็ปที่ 3: งานธุรการรับฝากเอกสาร
+    elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
         doc.step3_scanned_at = now
         doc.step3_name = scanner_name
     elif step == 4 and getattr(doc, 'step3_scanned_at', None) and not getattr(doc, 'step4_scanned_at', None):
-        # 🛒 สเต็ปที่ 4: งานจัดซื้อรับเอกสาร (ขั้นตอนสุดท้าย)
         doc.step4_scanned_at = now
         doc.step4_name = scanner_name
     else:
@@ -520,6 +546,8 @@ def track_post(
     if not error:
         db.commit()
         db.refresh(doc)
+        # 🛠️ ส่งสัญญาณบอกเว็บบนคอมพิวเตอร์ว่า "ข้อมูลเปลี่ยนแล้ว รีเฟรชด่วน!"
+        await manager.broadcast("refresh_page")
 
     doc.step_status = get_step_status(doc)
     return templates.TemplateResponse(

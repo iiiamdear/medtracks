@@ -3,7 +3,6 @@
 {% block content %}
 <div class="max-w-6xl mx-auto space-y-6">
 
-    <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 rounded-2xl shadow-sm">
         <div>
             <span class="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-2">DOC #{{ doc.id }}</span>
@@ -22,10 +21,8 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left -->
         <div class="lg:col-span-2 space-y-6">
 
-            <!-- ข้อมูลผู้ป่วย -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                     <span class="w-1.5 h-4 bg-blue-500 rounded-full"></span>
@@ -51,7 +48,6 @@
                 </div>
             </div>
 
-            <!-- รายการยา -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                     <span class="w-1.5 h-4 bg-rose-500 rounded-full"></span>
@@ -88,7 +84,6 @@
                                     <td class="px-6 py-4 text-right font-bold text-blue-600">{{ "{:,.2f}".format(item.total_price) }} ฿</td>
                                 </tr>
                                 {% endfor %}
-                                <!-- รวม -->
                                 <tr class="bg-slate-50">
                                     <td colspan="4"></td>
                                     <td class="px-4 py-4 text-right font-bold text-slate-700">รวมเงินทั้งสิ้น</td>
@@ -107,7 +102,6 @@
                 </div>
             </div>
 
-            <!-- เภสัชกร + หมายเหตุ -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
                 <div class="flex items-center gap-2">
                     <span class="text-emerald-500 text-lg">✅</span>
@@ -123,7 +117,6 @@
                 </div>
             </div>
 
-            <!-- Actions -->
             <div class="space-y-3">
                 {% if not doc.is_finished %}
                 <form action="/finish/{{ doc.id }}" method="post" onsubmit="return confirm('ยืนยันการปิดเคสใบนำส่งยานี้?')">
@@ -143,10 +136,8 @@
             </div>
         </div>
 
-        <!-- Right -->
         <div class="space-y-5">
 
-            <!-- สถานะ -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-center">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">สถานะการนำส่ง</p>
                 <span class="inline-block bg-blue-50 text-blue-700 font-bold text-lg px-5 py-2.5 rounded-xl">
@@ -154,7 +145,6 @@
                 </span>
             </div>
 
-            <!-- QR Code -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
                 <p class="text-2xl mb-1">📲</p>
                 <h3 class="font-bold text-slate-800 mb-1">QR Code บันทึกสถานะ</h3>
@@ -180,7 +170,6 @@
     </div>
 </div>
 
-<!-- ===== Print Area ===== -->
 <div id="print-area" class="hidden">
     <style>
         @media print {
@@ -199,7 +188,6 @@
 
     <div style="max-width:720px; margin:0 auto;">
 
-        <!-- Header Print -->
         <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #2563eb; padding-bottom:16px; margin-bottom:16px;">
             <div>
                 <div style="font-size:20px; font-weight:800; color:#2563eb;">💊 MedTrack</div>
@@ -212,7 +200,6 @@
             </div>
         </div>
 
-        <!-- ข้อมูลผู้ป่วย Print -->
         <div style="background:#f8fafc; border-radius:8px; padding:12px 16px; margin-bottom:14px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
             <div>
                 <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase;">HN</div>
@@ -232,7 +219,6 @@
             </div>
         </div>
 
-        <!-- ตารางยา Print -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
             <thead>
                 <tr style="background:#eff6ff; color:#3b82f6; font-size:11px; font-weight:700; text-transform:uppercase;">
@@ -265,7 +251,6 @@
             </tbody>
         </table>
 
-        <!-- เภสัชกร + หมายเหตุ Print -->
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
             <div style="background:#f0fdf4; border-radius:8px; padding:10px 14px;">
                 <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; margin-bottom:4px;">เภสัชกรผู้บันทึก</div>
@@ -277,7 +262,6 @@
             </div>
         </div>
 
-        <!-- Footer Print -->
         <div style="text-align:center; margin-top:20px; font-size:10px; color:#94a3b8; border-top:1px solid #f1f5f9; padding-top:12px;">
             พิมพ์โดยระบบ MedTrack &bull; {{ doc.created_at | thdate }} &bull; DOC #{{ doc.id }}
         </div>
@@ -292,6 +276,23 @@ function printDoc() {
     window.print();
     printArea.classList.add('hidden');
 }
+
+// 📡 ➕ เพิ่มระบบรับสัญญาณอัปเดตแบบ Real-time บนหน้านี้
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${protocol}//${window.location.host}/ws`;
+const socket = new WebSocket(wsUrl);
+
+socket.onmessage = function(event) {
+    if (event.data === "refresh_page") {
+        console.log("📡 ได้รับสัญญาณการอัปเดตสถานะ! กำลังรีโหลดข้อมูลใหม่...");
+        window.location.reload(); 
+    }
+};
+
+socket.onclose = function() {
+    console.log("WebSocket หลุดการเชื่อมต่อระบบ Real-time กำลังเชื่อมใหม่ใน 5 วินาที...");
+    setTimeout(() => { window.location.reload(); }, 5000);
+};
 </script>
 
 {% endblock %}
