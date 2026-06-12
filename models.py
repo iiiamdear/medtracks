@@ -79,6 +79,26 @@ class Document(Base):
         cascade="all, delete-orphan"
     )
 
+    # 🛠️ ทำ Alias ให้ doc.price ดึงค่าจาก total_price ป้องกันหน้า history.html พัง
+    @property
+    def price(self):
+        return self.total_price
+
+    # 🟢 [เพิ่มใหม่] ดึงชื่อยาตัวแรกมาโชว์ที่หน้าประวัติ
+    @property
+    def drug_name(self):
+        if self.items and len(self.items) > 0:
+            if self.items[0].medicine:
+                return self.items[0].medicine.name
+        return "ไม่มีรายการยา"
+
+    # 🟢 [เพิ่มใหม่] ดึงชื่อผู้บันทึก (เภสัชกร) มาโชว์ที่หน้าประวัติ
+    @property
+    def pharmacist_name(self):
+        if self.pharmacist:
+            return self.pharmacist.name
+        return "ไม่ระบุผู้บันทึก"
+
 
 class DocumentItem(Base):
     __tablename__ = "document_items"

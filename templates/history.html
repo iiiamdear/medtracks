@@ -2,7 +2,6 @@
 
 {% block content %}
 
-<!-- Header -->
 <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
     <div>
         <h1 class="text-xl font-bold text-slate-800">ประวัติการติดตามยาที่สำเร็จแล้ว</h1>
@@ -13,10 +12,8 @@
     </span>
 </div>
 
-<!-- Table -->
 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
-    <!-- Table Header + Search -->
     <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div class="flex items-center gap-2">
             <span class="w-1.5 h-4 bg-emerald-500 rounded-full"></span>
@@ -24,7 +21,6 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <!-- Search Box -->
             <div class="relative">
                 <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 text-sm pointer-events-none">
                     🔍
@@ -37,7 +33,6 @@
                 />
             </div>
 
-            <!-- Count Badge -->
             <span id="countBadge" class="text-[11px] font-semibold bg-slate-100 text-slate-500 px-3 py-1 rounded-lg whitespace-nowrap">
                 {{ docs | length }} รายการ
             </span>
@@ -62,50 +57,41 @@
                 {% for doc in docs %}
                 <tr class="hover:bg-slate-50/70 transition-colors searchable-row">
 
-                    <!-- ID -->
                     <td class="py-3.5 px-5 text-center">
                         <span class="text-slate-300 font-bold text-xs">{{ doc.id }}</span>
                     </td>
 
-                    <!-- HN -->
                     <td class="py-3.5 px-4">
                         <span class="font-mono text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
                             {{ doc.hn }}
                         </span>
                     </td>
 
-                    <!-- ชื่อผู้ป่วย -->
                     <td class="py-3.5 px-4">
                         <div class="font-semibold text-slate-800 text-[13px]">{{ doc.patient_name }}</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">{{ doc.created_at.strftime('%Y-%m-%d') }}</div>
                     </td>
 
-                    <!-- ชื่อยา -->
                     <td class="py-3.5 px-4">
                         <span class="font-semibold text-slate-700 text-[12px]">{{ doc.drug_name }}</span>
                     </td>
 
-                    <!-- ผู้บันทึก -->
                     <td class="py-3.5 px-4 text-slate-600 font-medium text-[12px]">
                         {{ doc.pharmacist_name }}
                     </td>
 
-                    <!-- ราคา -->
                     <td class="py-3.5 px-4 text-right">
                         <span class="font-bold text-slate-700 text-[13px]">{{ "{:,.2f}".format(doc.price) }}</span>
                         <span class="text-[10px] text-slate-400"> ฿</span>
                     </td>
 
-                    <!-- วันที่ -->
                     <td class="py-3.5 px-4">
-                        <span class="text-[11px] text-slate-400 font-medium">
-                            {{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        <span class="text-[12px] text-slate-500 font-medium">
+                            {{ doc.created_at.strftime('%d/%m/%Y') }}
                         </span>
                     </td>
 
-                    <!-- จัดการ -->
                     <td class="py-3.5 px-5 text-center">
-                        <a href="{{ url_for('view_doc', doc_id=doc.id) }}"
+                        <a href="/document/{{ doc.id }}"
                            class="inline-block text-[11px] font-semibold bg-slate-100 hover:bg-blue-500 text-slate-600 hover:text-white px-3 py-1.5 rounded-lg transition-colors">
                             🔎 เรียกดู
                         </a>
@@ -124,7 +110,6 @@
             </tbody>
         </table>
 
-        <!-- No Result (ตอน search แล้วไม่เจอ) -->
         <div id="noResult" class="hidden text-center py-16 text-slate-400">
             <div class="text-4xl mb-3">🔍</div>
             <div class="text-sm font-semibold text-slate-500 mb-1">ไม่พบรายการที่ค้นหา</div>
@@ -144,7 +129,6 @@
 
 </div>
 
-<!-- Search Script -->
 <script>
     const searchInput = document.getElementById('searchInput');
     const rows = document.querySelectorAll('.searchable-row');
@@ -167,10 +151,8 @@
             }
         });
 
-        // No result state
         noResult.classList.toggle('hidden', visible > 0);
 
-        // Update count
         if (showCount) showCount.textContent = visible;
         countBadge.textContent = visible + ' รายการ';
     });
