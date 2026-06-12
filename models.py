@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
-from database import Base
+from database import Base, engine  # 🛠️ นำเข้า engine เพิ่มเพื่อใช้ตรวจสอบตารางอัตโนมัติ
 from datetime import datetime
+import sqlalchemy
 
 
 class User(Base):
@@ -107,3 +108,14 @@ class DocumentItem(Base):
     @property
     def usage_instruction(self):
         return self.dose
+
+
+# ⚡ ตรวจสอบและบังคับเพิ่มคอลัมน์ Step 4 เข้าสู่ฐานข้อมูลจริงอัตโนมัติ ป้องกัน Error 500
+try:
+    with engine.connect() as conn:
+        # บังคับยิงคำสั่งเพิ่มคอลัมน์ใน SQLite (ถ้ามีอยู่แล้วระบบจะข้ามให้เอง ไม่พัง)
+        conn.execute(sqlalchemy.text("ALTER TABLE documents ADD COLUMN step4_scanned_at TIMESTAMP;"))
+        conn.execute(sqlalchemy.text("ALTER TABLE documents ADD COLUMN step4_name VARCHAR;"))
+        conn.commit()
+except Exception:
+    pass
