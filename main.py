@@ -7,7 +7,7 @@ import io
 import os
 
 import qrcode
-import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยเเทน UTC มาตรฐาน
+import pytz  # บังคับใช้สำหรับจัดการเวลาประเทศไทยแทน UTC มาตรฐาน
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -156,20 +156,25 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 
+# 🛠️ ปรับปรุงใหม่: ตัวกรองวันที่ที่ปลอดภัย ป้องกันข้อผิดพลาด 500
 def thdate_filter(value):
     if not value:
-        return ""
-    if isinstance(value, datetime):
-        tz_thai = pytz.timezone('Asia/Bangkok')
-        if value.tzinfo is None:
-            value = tz_thai.localize(value)
-        else:
-            value = value.astimezone(tz_thai)
-            
-        year = value.year
-        thai_year = year + 543 if year < 2400 else year
-            
-        return value.strftime(f"%d/%m/{thai_year} %H:%M")
+        return "-"
+    try:
+        if isinstance(value, datetime):
+            tz_thai = pytz.timezone('Asia/Bangkok')
+            if value.tzinfo is None:
+                value = tz_thai.localize(value)
+            else:
+                value = value.astimezone(tz_thai)
+                
+            year = value.year
+            thai_year = year + 543 if year < 2400 else year
+            return value.strftime(f"%d/%m/{thai_year} %H:%M")
+        elif isinstance(value, str):
+            return value[:16]
+    except Exception:
+        return str(value)
     return str(value)
 
 templates.env.filters["thdate"] = thdate_filter
@@ -526,7 +531,6 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    # 🛠️ โหลดรายการยาแนบไปในระบบ เพื่อให้หน้าดึงดูดรายงานได้สมบูรณ์ ไม่เป็นค่าว่าง
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
@@ -580,8 +584,6 @@ async def track_post(
         await manager.broadcast("refresh_page")
         return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
-    # 🛠️ บล็อกกรณีเกิด Error: ดึงความสัมพันธ์ยาโยนกลับเข้าไปให้หน้า Template 
-    # และเปลี่ยน status_code เป็น 422 เพื่อให้ Fetch ฝั่งหน้าบ้านดักรับข้อความ Error ไปโชว์กล่องแดงได้
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
