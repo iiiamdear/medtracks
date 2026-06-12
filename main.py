@@ -156,7 +156,6 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 
-# 🛠️ แก้ไขเซฟตี้: ตัวกรองวันที่ที่แข็งแกร่งขึ้น ป้องกันข้อมูลเวลาเก่าในเบสเสียหาย
 def thdate_filter(value):
     if not value:
         return "-"
@@ -313,7 +312,6 @@ def index(request: Request, db: Session = Depends(database.get_db)):
     except Exception:
         active_docs = []
 
-    # 🛠️ ดักจับ Try-Except ป้องกันไอเทมในเบสเสียทำหน้าแรกเปิดไม่ขึ้น
     for doc in active_docs:
         try:
             doc.step_status = get_step_status(doc)
@@ -549,7 +547,6 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    # 🛠️ โหลดรายการยาแนบไปในระบบ เพื่อให้หน้าดึงดูดรายงานได้สมบูรณ์ ไม่เป็นค่าว่าง
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
@@ -580,6 +577,10 @@ async def track_post(
     now = get_now_th()
     error = None
 
+    # ดึงสถานะปัจจุบันของเอกสารมาตรวจสอบเพื่อความแม่นยำ
+    current_status = get_step_status(doc)
+    current_step = current_status["current"]
+
     if doc.is_finished:
         error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
     elif step == 1 and not doc.step1_scanned_at:
@@ -591,7 +592,9 @@ async def track_post(
     elif step == 3 and doc.step1_scanned_at and doc.step2_scanned_at and not getattr(doc, 'step3_scanned_at', None):
         doc.step3_scanned_at = now
         doc.step3_name = scanner_name
-    elif step == 4 and getattr(doc, 'step3_scanned_at', None) and not getattr(doc, 'step4_scanned_at', None):
+        
+    # 🛠️ ปรับปรุง Logic ขั้นที่ 4: ถ้าหน้างานธุรการสแกนแล้ว (สถานะปัจจุบันเป็นขั้น 3) หรือมีข้อมูล step3 ในเบส ให้บันทึกผ่านได้ทันที
+    elif step == 4 and (current_step >= 3 or getattr(doc, 'step3_scanned_at', None)) and not getattr(doc, 'step4_scanned_at', None):
         doc.step4_scanned_at = now
         doc.step4_name = scanner_name
     else:
@@ -603,8 +606,6 @@ async def track_post(
         await manager.broadcast("refresh_page")
         return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
-    # 🛠️ บล็อกกรณีเกิด Error: ดึงความสัมพันธ์ยาโยนกลับเข้าไปให้หน้า Template 
-    # และเปลี่ยน status_code เป็น 422 เพื่อให้ Fetch ฝั่งหน้าบ้านดักรับข้อความ Error ไปโชว์กล่องแดงได้
     items = db.query(models.DocumentItem)\
               .options(joinedload(models.DocumentItem.medicine))\
               .filter(models.DocumentItem.document_id == doc_id).all()
