@@ -36,7 +36,6 @@
     .font-mono-custom {
       font-family: 'Inter', monospace;
     }
-    /* ปรับแต่งสไตล์ตารางยาเพิ่มเติม */
     .med-table th {
       font-size: 0.7rem;
       text-transform: uppercase;
@@ -146,7 +145,7 @@
                 {{ "{:,.2f}".format(doc.total_price or 0) }}
               </td>
             </tr>
-          {%   else %}
+          {% else %}
             <tr>
               <td colspan="5" class="text-center py-4 text-muted small">
                 <i class="bi bi-box shadow-xs d-block fs-3 mb-1 text-light"></i>
@@ -180,10 +179,10 @@
   {% if doc.step2_scanned_at %}
     {% set current_step = 2 %}
   {% endif %}
-  {% if getattr(doc, 'step3_scanned_at', None) %}
+  {% if doc.step3_scanned_at %}
     {% set current_step = 3 %}
   {% endif %}
-  {% if getattr(doc, 'step4_scanned_at', None) %}
+  {% if doc.step4_scanned_at %}
     {% set current_step = 4 %}
   {% endif %}
 
@@ -191,8 +190,8 @@
     {% set steps = [
       (1, "เภสัชกรส่ง", doc.step1_scanned_at, doc.step1_name),
       (2, "งานประกัน", doc.step2_scanned_at, doc.step2_name),
-      (3, "งานธุรการ", getattr(doc, 'step3_scanned_at', None), getattr(doc, 'step3_name', None)),
-      (4, "งานจัดซื้อ", getattr(doc, 'step4_scanned_at', None), getattr(doc, 'step4_name', None))
+      (3, "งานธุรการ", doc.step3_scanned_at, doc.step3_name),
+      (4, "งานจัดซื้อ", doc.step4_scanned_at, doc.step4_name)
     ] %}
     {% for num, label, scanned_at, name in steps %}
     <div class="col-3">
