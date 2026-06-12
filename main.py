@@ -99,7 +99,7 @@ def get_now_th():
     return datetime.now(tz_thai)
 
 
-# 🛠️ ===== WEBSOCKET CONNECTION MANAGER FOR RENDER =====
+# ===== WEBSOCKET CONNECTION MANAGER FOR RENDER =====
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -123,7 +123,6 @@ class ConnectionManager:
             self.disconnect(bad_conn)
 
 manager = ConnectionManager()
-# =======================================================
 
 
 # ===== LIFESPAN =====
@@ -158,25 +157,19 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 
-# 🛠️ ปรับปรุงตัวกรองวันที่ให้รองรับระบบตั้งค่า TZ บน Render อย่างปลอดภัย (ไม่บวกปีซ้ำซ้อน)
+# ตัวกรองวันที่ให้รองรับระบบตั้งค่า TZ บน Render อย่างปลอดภัย
 def thdate_filter(value):
     if not value:
         return ""
     if isinstance(value, datetime):
-        # ล็อกแปลงโซนเวลาให้กลายเป็นเวลาไทยก่อนแปลงข้อมูลออกหน้าจอ
         tz_thai = pytz.timezone('Asia/Bangkok')
         if value.tzinfo is None:
-            # ดึงเวลาแบบระบุโซนแบบนุ่มนวล
             value = tz_thai.localize(value)
         else:
             value = value.astimezone(tz_thai)
             
-        # ตรวจสอบ: หากค่าปีน้อยกว่า 2400 (คือเป็น ค.ศ.) ค่อยบวก 543 เพื่อทำเป็น พ.ศ.
         year = value.year
-        if year < 2400:
-            thai_year = year + 543
-        else:
-            thai_year = year
+        thai_year = year + 543 if year < 2400 else year
             
         return value.strftime(f"%d/%m/{thai_year} %H:%M")
     return str(value)
@@ -187,7 +180,7 @@ os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# 🛠️ ===== WEBSOCKET ENDPOINT WITH HEARTBEAT =====
+# ===== WEBSOCKET ENDPOINT WITH HEARTBEAT =====
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -196,9 +189,8 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text("pong")
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, Exception):
         manager.disconnect(websocket)
-# ==================================================
 
 
 # ===== AUTH =====
@@ -372,12 +364,11 @@ async def create_post(
     if response:
         return response
 
+    # 🛠️ ปรับปรุงวิธีการดึงอาเรย์ข้อมูลฟอร์มยาให้รองรับชื่อแท็กที่ส่งมาจาก HTML5 อย่างปลอดภัย 100%
     form_data = await request.form()
-    
-    medicine_ids = form_data.getlist("medicine_ids") or form_data.getlist("medicine_ids[]") or form_data.getlist("medicine_id") or form_data.getlist("medicine_id[]")
-    doses = form_data.getlist("doses") or form_data.getlist("doses[]") or form_data.getlist("dose") or form_data.getlist("dose[]")
-    quantities = form_data.getlist("quantities") or form_data.getlist("quantities[]") or form_data.getlist("quantity") or form_data.getlist("quantity[]")
-    unit_prices = form_data.getlist("unit_prices") or form_data.getlist("unit_prices[]") or form_data.getlist("unit_price") or form_data.getlist("unit_price[]")
+    medicine_ids = form_data.getlist("medicine_id[]")
+    doses = form_data.getlist("dose[]")
+    quantities = form_data.getlist("quantity[]")
 
     ph_id = int(pharmacist_id) if pharmacist_id and pharmacist_id.strip() else None
 
@@ -389,12 +380,14 @@ async def create_post(
         note=note,
         pharmacist_id=ph_id,
         user_id=user.id,
-        created_at=get_now_th()  # เปลี่ยนเป็นเวลาไทย
+        created_at=get_now_th()
     )
     db.add(doc)
     db.flush()
 
     grand_total = 0.0
+    
+    # 🛠️ ประมวลผลลูปข้อมูลเรียงแถวตามจำนวนไอเทมที่กดสร้างจริง ป้องกันบั๊ก Array Index Out of Range
     for i, med_id in enumerate(medicine_ids):
         if not med_id or not med_id.strip():
             continue
@@ -403,8 +396,9 @@ async def create_post(
         if not med:
             continue
 
+        # จัดสรรค่าตัวเลขและรายละเอียดวิธีใช้
         qty = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
-        unit_price = float(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else float(med.price)
+        unit_price = float(med.price)  # ดึงราคากลางที่อัปเดตล่าสุดจาก Database ของยานั้นๆ มาคำนวณโดยตรง
         dose = doses[i] if i < len(doses) else ""
         row_total = qty * unit_price
 
@@ -421,6 +415,9 @@ async def create_post(
 
     doc.total_price = grand_total
     db.commit()
+    
+    # ส่งสัญญาณรีเฟรชหน้าแดชบอร์ดคอมพิวเตอร์หลักทันทีที่มีการเปิดเคสใหม่
+    await manager.broadcast("refresh_page")
     return RedirectResponse(url=f"/document/{doc.id}", status_code=302)
 
 
@@ -437,7 +434,7 @@ async def finish_document(doc_id: int, request: Request, db: Session = Depends(d
         raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
 
     doc.is_finished = True
-    doc.finished_at = get_now_th()  # เปลี่ยนเป็นเวลาไทย
+    doc.finished_at = get_now_th()
     db.commit()
     
     await manager.broadcast("refresh_page")
@@ -535,10 +532,9 @@ def track_get(doc_id: int, request: Request, db: Session = Depends(database.get_
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    # ดึงค่าพารามิเตอร์ success จาก URL เพื่อไปแสดงกล่องเขียวแจ้งเตือนบนมือถือ
     success = request.query_params.get("success") == "1"
-
     doc.step_status = get_step_status(doc)
+    
     return templates.TemplateResponse(
         request=request,
         name="track.html",
@@ -558,7 +554,7 @@ async def track_post(
     if not doc:
         return HTMLResponse("<h2>ไม่พบเอกสาร</h2>", status_code=404)
 
-    now = get_now_th()  # 🛠️ ล็อกบันทึกเวลาให้เป็นเวลาไทย (GMT+7) เสมอ
+    now = get_now_th()
     error = None
 
     if doc.is_finished:
@@ -581,9 +577,7 @@ async def track_post(
     if not error:
         db.commit()
         db.refresh(doc)
-        # 🚀 กระจายสัญญาณสดหาคอมพิวเตอร์บอร์ดใหญ่ทันที
         await manager.broadcast("refresh_page")
-        # 🛠️ เปลี่ยนกลับด้วย Redirect คืนค่าโครงสร้างระบบเครือข่าย ป้องกันหน้าจอมือถือค้างและส่งข้อมูลซ้ำซ้อน
         return RedirectResponse(url=f"/track/{doc_id}?success=1", status_code=303)
 
     doc.step_status = get_step_status(doc)
