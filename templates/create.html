@@ -156,18 +156,15 @@
 </div>
 
 <script>
-    // Map ราคายาจากฝั่งเซิร์ฟเวอร์
-    const medicinePrices = {
-        {% for med in medicines %}
-        "{{ med.id }}": {{ med.price }},
-        {% endfor %}
-    };
-
     function calcRow(el) {
         const row = el.closest('.item-row');
         const select = row.querySelector('.medicine-select');
         const qty = parseFloat(row.querySelector('.quantity-input').value) || 0;
-        const price = parseFloat(medicinePrices[select.value]) || 0;
+        
+        // 🟢 ดึงราคาโดยตรงจาก attribute 'data-price' ของ option ที่ถูกเลือก (เสถียรที่สุด ไม่เสี่ยงบั๊กพิมพ์ชื่อตัวแปรผิด)
+        const selectedOption = select.options[select.selectedIndex];
+        const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+        
         const total = price * qty;
         
         const totalBox = row.querySelector('.row-total');
@@ -190,10 +187,10 @@
         const container = document.getElementById('items-container');
         const firstRow = container.querySelector('.item-row');
         
-        // 🛠️ เปลี่ยนวิธีการ Clone เพื่อตัดความเชื่อมโยงของ Attribute ตัวเดิมอย่างเด็ดขาด ป้องกัน Grand Total ค้างเวลาลบแถว
+        // Clone แถวออกมา
         const newRow = firstRow.cloneNode(true);
 
-        // รีเซ็ตค่าภายในอินพุตใหม่ทั้งหมด
+        // รีเซ็ตค่าภายในช่องอินพุตใหม่ทั้งหมดเพื่อความสะอาด
         newRow.querySelectorAll('input').forEach(input => {
             if (input.name === 'quantity[]') {
                 input.value = 1;
@@ -206,24 +203,24 @@
             select.selectedIndex = 0;
         });
 
-        // ล้างค่าข้อมูลคำนวณราคาแถวใหม่ให้สะอาด
+        // ล้างราคารวมของแถวใหม่ให้เป็น 0
         const newTotalBox = newRow.querySelector('.row-total');
         newTotalBox.setAttribute('data-value', '0');
         newTotalBox.textContent = '0.00 ฿';
 
         container.appendChild(newRow);
-        calcGrandTotal(); // อัปเดตยอดรวมใหญ่ทุกครั้งหลังเพิ่มแถว
+        calcGrandTotal(); // คำนวณราคารวมก้อนใหญ่อีกครั้งหลังจากเพิ่มแถวสำเร็จ
     }
 
     function removeRow(button) {
         const container = document.getElementById('items-container');
         const rows = container.querySelectorAll('.item-row');
         
-        // ป้องกันไม่ให้ลบแถวสุดท้ายทิ้งจนหมดเกลี้ยง
+        // ดักคุมไม่ให้เผลอลบแถวรายการยาจนเกลี้ยงหน้าจอ
         if (rows.length > 1) {
             const currentRow = button.closest('.item-row');
             currentRow.remove();
-            calcGrandTotal(); // 🛠️ บังคับให้สคริปต์คำนวณยอดรวมใหม่ทันทีหลังจากลบ HTML Row ทิ้งไปแล้ว
+            calcGrandTotal(); // คำนวณราคารวมก้อนใหญ่ใหม่ทันทีหลังจากลบ HTML แถวนั้นออกไปแล้ว
         } else {
             alert('จำเป็นต้องมีรายการยาอย่างน้อย 1 รายการในเอกสาร');
         }
