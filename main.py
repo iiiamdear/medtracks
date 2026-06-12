@@ -577,10 +577,6 @@ async def track_post(
     now = get_now_th()
     error = None
 
-    # ดึงสถานะปัจจุบันของเอกสารมาตรวจสอบเพื่อความแม่นยำ
-    current_status = get_step_status(doc)
-    current_step = current_status["current"]
-
     if doc.is_finished:
         error = "เอกสารนี้ปิดแล้ว ไม่สามารถสแกนได้"
     elif step == 1 and not doc.step1_scanned_at:
@@ -593,8 +589,8 @@ async def track_post(
         doc.step3_scanned_at = now
         doc.step3_name = scanner_name
         
-    # 🛠️ ปรับปรุง Logic ขั้นที่ 4: ถ้าหน้างานธุรการสแกนแล้ว (สถานะปัจจุบันเป็นขั้น 3) หรือมีข้อมูล step3 ในเบส ให้บันทึกผ่านได้ทันที
-    elif step == 4 and (current_step >= 3 or getattr(doc, 'step3_scanned_at', None)) and not getattr(doc, 'step4_scanned_at', None):
+    # 🛠️ ปรับแก้ตรงนี้: ปลดล็อกขั้นตอนที่ 4 ให้ทำงานได้ทันทีถ้ามีการเรียกมาและยังไม่มีเวลาบันทึก
+    elif step == 4 and not getattr(doc, 'step4_scanned_at', None):
         doc.step4_scanned_at = now
         doc.step4_name = scanner_name
     else:
