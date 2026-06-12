@@ -316,7 +316,7 @@ function connectTrackingWS() {
     };
 }
 
-// 🛠️ ระบบป้องกันการกดเบิ้ลและค้างโดยใช้ Fetch API
+// 🛠️ ปรับเปลี่ยนระบบดักจับการบันทึกข้อมูล (แก้บั๊กกดแล้วค้าง)
 const statusForm = document.getElementById('tracking-status-form');
 if (statusForm) {
     statusForm.addEventListener('submit', function(e) {
@@ -326,7 +326,7 @@ if (statusForm) {
         const errorAlert = document.getElementById('ajax-error-alert');
         const errorText = document.getElementById('ajax-error-text');
         
-        // ล็อกปุ่มกดป้องกันการเบิ้ลข้อมูล
+        // ล็อกปุ่มกดป้องกันสแปม
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>กำลังบันทึกข้อมูล...`;
         errorAlert.classList.add('d-none');
@@ -337,13 +337,28 @@ if (statusForm) {
             method: 'POST',
             body: formData
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('ระบบหลังบ้านเกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+        .then(async response => {
+            // 💡 ถ้าหลังบ้านประมวลผลผ่าน (ไม่ว่าจะเจอ Redirect 303 หรือสำเร็จ)
+            if (response.ok) {
+                // บังคับให้เบราว์เซอร์เปลี่ยนหน้าไปที่หน้าสำเร็จตามพารามิเตอร์ที่ต้องการทันที 
+                window.location.href = `/track/{{ doc.id }}?success=1`;
+            } else {
+                // ถ้าหลังบ้านส่ง Error มา (สถานะ 422 หรืออื่นๆ) ให้แกะเนื้อหาข้อความออกมาโชว์
+                const htmlText = await response.text();
+                // ไปดึงข้อความจากแจ้งเตือนใน HTML ที่หลังบ้านเรนเดอร์ตอบกลับมา
+                const parser = new DOMParser();
+                const docParsed = parser.parseFromString(htmlText, 'text/html');
+                const backendErrorAlert = docParsed.querySelector('.alert-danger');
+                
+                if (backendErrorAlert) {
+                    throw new Error(backendErrorAlert.innerText.trim());
+                } else {
+                    throw new Error('บันทึกไม่สำเร็จ กรุณาเช็กสเต็ปการบันทึกข้อมูลอีกครั้ง');
+                }
             }
-            // ปล่อยให้ WebSocket ทำหน้าที่สั่ง Reload หน้าจอตามสเต็ปธรรมชาติ
         })
         .catch(err => {
+            // คืนค่าปุ่มให้กดใหม่ได้ และแสดงกล่องแดงแจ้งข้อผิดพลาด
             submitBtn.disabled = false;
             submitBtn.innerHTML = `<i class="bi bi-check2-circle me-2"></i>ยืนยันและอัปเดตสถานะ`;
             errorText.innerText = err.message;
